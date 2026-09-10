@@ -70,17 +70,24 @@
   }
   .mini-btn:hover{ background:rgba(255,107,139,.15); color:var(--pink); }
   .lecture-list{ margin-left:8px; margin-bottom:6px; }
-  .lecture-row{
+  .lecture-block{ margin-bottom:4px; }
+  .lecture-header-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:6px 8px 6px 6px; font-weight:600; font-size:12.5px; color:#444;
+  }
+  .lecture-title{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+  .session-list{ margin-left:10px; margin-bottom:4px; }
+  .session-row{
     display:flex; align-items:center; justify-content:space-between;
     padding:7px 10px; border-radius:8px; font-size:13px; color:#555;
     cursor:pointer; margin-bottom:2px;
   }
-  .lecture-row:hover{ background:rgba(91,108,255,.1); }
-  .lecture-row.active{ background:linear-gradient(135deg, var(--accent), var(--pink)); color:#fff; font-weight:600; }
-  .lecture-row .mini-btn{ color:inherit; opacity:.65; }
-  .lecture-row.active .mini-btn:hover{ background:rgba(255,255,255,.25); color:#fff; }
-  .lecture-row .mini-btn:hover{ opacity:1; }
-  .lecture-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+  .session-row:hover{ background:rgba(91,108,255,.1); }
+  .session-row.active{ background:linear-gradient(135deg, var(--accent), var(--pink)); color:#fff; font-weight:600; }
+  .session-row .mini-btn{ color:inherit; opacity:.65; }
+  .session-row.active .mini-btn:hover{ background:rgba(255,255,255,.25); color:#fff; }
+  .session-row .mini-btn:hover{ opacity:1; }
+  .session-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
   .row-actions{ display:flex; gap:2px; flex-shrink:0; }
   .year-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .empty-tree-hint{ font-size:12px; color:var(--muted); padding:6px 8px; line-height:1.6; }
@@ -269,10 +276,10 @@
       </div>
       <div class="header-actions">
         <span class="count-badge" id="countBadge">0개의 게시물</span>
-        <button class="link-btn" id="clearAllBtn" disabled>이 강의 게시물 전체 삭제</button>
+        <button class="link-btn" id="clearAllBtn" disabled>이 수업 게시물 전체 삭제</button>
       </div>
     </header>
-    <p id="boardSubtitle">왼쪽에서 강의를 선택하거나 새로 만들어보세요.</p>
+    <p id="boardSubtitle">왼쪽에서 수업을 선택하거나 새로 만들어보세요.</p>
 
     <main class="board" id="board"></main>
   </div>
@@ -434,6 +441,10 @@
     ensureReady();
     await addDoc(collection(db,'lectures'), { yearId, name, createdAt: Date.now() });
   }
+  async function addSession(lectureId, name){
+    ensureReady();
+    await addDoc(collection(db,'sessions'), { lectureId, name, createdAt: Date.now() });
+  }
   async function renameYear(yearId, name){
     ensureReady();
     await updateDoc(doc(db,'years', yearId), { name });
@@ -442,8 +453,12 @@
     ensureReady();
     await updateDoc(doc(db,'lectures', lectureId), { name });
   }
-  async function deletePostsOfLecture(lectureId){
-    const snap = await getDocs(query(collection(db,'posts'), where('lectureId','==', lectureId)));
+  async function renameSession(sessionId, name){
+    ensureReady();
+    await updateDoc(doc(db,'sessions', sessionId), { name });
+  }
+  async function deletePostsOfSession(sessionId){
+    const snap = await getDocs(query(collection(db,'posts'), where('sessionId','==', sessionId)));
     for(const d of snap.docs){
       const data = d.data();
       if(data.storagePath){
@@ -452,32 +467,46 @@
       await deleteDoc(doc(db,'posts', d.id));
     }
   }
+  async function deleteSessionCascade(session){
+    ensureReady();
+    await deletePostsOfSession(session.id);
+    await deleteDoc(doc(db,'sessions', session.id));
+    if(selectedSessionId === session.id) selectSession(null);
+  }
   async function deleteLectureCascade(lecture){
     ensureReady();
-    await deletePostsOfLecture(lecture.id);
+    const lectureSessions = sessions.filter(s=>s.lectureId===lecture.id);
+    for(const s of lectureSessions){
+      await deletePostsOfSession(s.id);
+      await deleteDoc(doc(db,'sessions', s.id));
+      if(selectedSessionId === s.id) selectSession(null);
+    }
     await deleteDoc(doc(db,'lectures', lecture.id));
-    if(selectedLectureId === lecture.id) selectLecture(null);
   }
   async function deleteYearCascade(year){
     ensureReady();
     const yearLectures = lectures.filter(l=>l.yearId===year.id);
     for(const lec of yearLectures){
-      await deletePostsOfLecture(lec.id);
+      const lectureSessions = sessions.filter(s=>s.lectureId===lec.id);
+      for(const s of lectureSessions){
+        await deletePostsOfSession(s.id);
+        await deleteDoc(doc(db,'sessions', s.id));
+        if(selectedSessionId === s.id) selectSession(null);
+      }
       await deleteDoc(doc(db,'lectures', lec.id));
-      if(selectedLectureId === lec.id) selectLecture(null);
     }
     await deleteDoc(doc(db,'years', year.id));
   }
 
   async function remoteCreatePost({title, answer, imageDataURL}){
     ensureReady();
-    if(!selectedLectureId) throw new Error('강의가 선택되지 않았습니다.');
+    if(!selectedSessionId) throw new Error('수업이 선택되지 않았습니다.');
     const storagePath = `posts/${genId()}.jpg`;
     const sRef = ref(storage, storagePath);
     await uploadString(sRef, imageDataURL, 'data_url');
     const imageURL = await getDownloadURL(sRef);
     await addDoc(collection(db,'posts'), {
-      lectureId: selectedLectureId, title, answer, image: imageURL, storagePath, createdAt: Date.now()
+      sessionId: selectedSessionId, title, answer, image: imageURL, storagePath, createdAt: Date.now()
     });
   }
   async function remoteUpdatePostFields(id, changes){
@@ -502,9 +531,10 @@
   /* ---------------- State ---------------- */
   let years = [];
   let lectures = [];
+  let sessions = [];
   let posts = [];
-  let selectedLectureId = null;
-  try{ selectedLectureId = localStorage.getItem('selectedLectureId') || null; }catch(e){}
+  let selectedSessionId = null;
+  try{ selectedSessionId = localStorage.getItem('selectedSessionId') || null; }catch(e){}
   let unsubscribePosts = null;
   let restoredSelection = false;
 
@@ -512,34 +542,41 @@
     onSnapshot(collection(db,'years'), snap=>{
       years = snap.docs.map(d=>({id:d.id, ...d.data()}));
       renderSidebar();
+      updateBoardHeader();
       hideSetupBanner();
     }, err=>{ showSetupBanner('⚠️ 연도 목록을 불러오지 못했습니다: ' + err.message); });
 
     onSnapshot(collection(db,'lectures'), snap=>{
       lectures = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      renderSidebar();
+      updateBoardHeader();
+    }, err=>{ showSetupBanner('⚠️ 강의 목록을 불러오지 못했습니다: ' + err.message); });
+
+    onSnapshot(collection(db,'sessions'), snap=>{
+      sessions = snap.docs.map(d=>({id:d.id, ...d.data()}));
       if(!restoredSelection){
         restoredSelection = true;
-        if(selectedLectureId && lectures.some(l=>l.id===selectedLectureId)){
-          selectLecture(selectedLectureId);
+        if(selectedSessionId && sessions.some(s=>s.id===selectedSessionId)){
+          selectSession(selectedSessionId);
         }
       }
       renderSidebar();
       updateBoardHeader();
-    }, err=>{ showSetupBanner('⚠️ 강의 목록을 불러오지 못했습니다: ' + err.message); });
+    }, err=>{ showSetupBanner('⚠️ 수업 목록을 불러오지 못했습니다: ' + err.message); });
   }
 
-  function selectLecture(lectureId){
-    selectedLectureId = lectureId;
-    try{ localStorage.setItem('selectedLectureId', lectureId || ''); }catch(e){}
+  function selectSession(sessionId){
+    selectedSessionId = sessionId;
+    try{ localStorage.setItem('selectedSessionId', sessionId || ''); }catch(e){}
     if(unsubscribePosts){ unsubscribePosts(); unsubscribePosts = null; }
     posts = [];
-    if(!lectureId){
+    if(!sessionId){
       updateBoardHeader();
       render();
       renderSidebar();
       return;
     }
-    const q = query(collection(db,'posts'), where('lectureId','==', lectureId));
+    const q = query(collection(db,'posts'), where('sessionId','==', sessionId));
     unsubscribePosts = onSnapshot(q, snap=>{
       posts = snap.docs.map(d=>({id:d.id, ...d.data()}));
       posts.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
@@ -553,16 +590,18 @@
     const boardTitle = document.getElementById('boardTitle');
     const boardSubtitle = document.getElementById('boardSubtitle');
     const clearAllBtn = document.getElementById('clearAllBtn');
-    if(!selectedLectureId){
+    if(!selectedSessionId){
       boardTitle.textContent = '📚 문제풀이 공유 보드';
-      boardSubtitle.textContent = '왼쪽에서 강의를 선택하거나 새로 만들어보세요.';
+      boardSubtitle.textContent = '왼쪽에서 수업을 선택하거나 새로 만들어보세요.';
       clearAllBtn.disabled = true;
       return;
     }
-    const lecture = lectures.find(l=>l.id===selectedLectureId);
+    const session = sessions.find(s=>s.id===selectedSessionId);
+    const lecture = session ? lectures.find(l=>l.id===session.lectureId) : null;
     const year = lecture ? years.find(y=>y.id===lecture.yearId) : null;
-    if(lecture){
-      boardTitle.textContent = `📚 ${year ? year.name + ' · ' : ''}${lecture.name}`;
+    if(session){
+      const path = [year?year.name:null, lecture?lecture.name:null, session.name].filter(Boolean).join(' · ');
+      boardTitle.textContent = `📚 ${path}`;
       boardSubtitle.textContent = '사진을 올리고, 함께 풀이를 확인해보세요 — 로그인 없이 바로 사용할 수 있어요.';
     }
     clearAllBtn.disabled = posts.length===0;
@@ -579,14 +618,30 @@
     tree.innerHTML = sortedYears.map(y=>{
       const yearLectures = lectures.filter(l=>l.yearId===y.id).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
       const lecturesHTML = yearLectures.length
-        ? yearLectures.map(l=>`
-            <div class="lecture-row ${l.id===selectedLectureId?'active':''}" data-lecture-id="${l.id}">
-              <span class="lecture-name">${escapeHTML(l.name)}</span>
-              <span class="row-actions">
-                <button class="mini-btn rename-lecture-btn" data-lecture-id="${l.id}" title="강의 이름 수정">✏️</button>
-                <button class="mini-btn delete-lecture-btn" data-lecture-id="${l.id}" title="강의 삭제">✕</button>
-              </span>
-            </div>`).join('')
+        ? yearLectures.map(l=>{
+            const lectureSessions = sessions.filter(s=>s.lectureId===l.id).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+            const sessionsHTML = lectureSessions.length
+              ? lectureSessions.map(s=>`
+                  <div class="session-row ${s.id===selectedSessionId?'active':''}" data-session-id="${s.id}">
+                    <span class="session-name">${escapeHTML(s.name)}</span>
+                    <span class="row-actions">
+                      <button class="mini-btn rename-session-btn" data-session-id="${s.id}" title="수업 이름 수정">✏️</button>
+                      <button class="mini-btn delete-session-btn" data-session-id="${s.id}" title="수업 삭제">✕</button>
+                    </span>
+                  </div>`).join('')
+              : `<div class="empty-tree-hint">수업 없음</div>`;
+            return `<div class="lecture-block" data-lecture-id="${l.id}">
+              <div class="lecture-header-row">
+                <span class="lecture-title">${escapeHTML(l.name)}</span>
+                <span class="row-actions">
+                  <button class="mini-btn rename-lecture-btn" data-lecture-id="${l.id}" title="강의 이름 수정">✏️</button>
+                  <button class="mini-btn add-session-btn" data-lecture-id="${l.id}" title="수업 추가">＋</button>
+                  <button class="mini-btn delete-lecture-btn" data-lecture-id="${l.id}" title="강의 삭제">✕</button>
+                </span>
+              </div>
+              <div class="session-list">${sessionsHTML}</div>
+            </div>`;
+          }).join('')
         : `<div class="empty-tree-hint">강의 없음</div>`;
       return `<div class="year-block" data-year-id="${y.id}">
         <div class="year-row">
@@ -611,11 +666,14 @@
 
   document.getElementById('yearTree').addEventListener('click', async (e)=>{
     const addLectureBtn = e.target.closest('.add-lecture-btn');
+    const addSessionBtn = e.target.closest('.add-session-btn');
     const renameYearBtn = e.target.closest('.rename-year-btn');
     const renameLectureBtn = e.target.closest('.rename-lecture-btn');
+    const renameSessionBtn = e.target.closest('.rename-session-btn');
     const deleteYearBtn = e.target.closest('.delete-year-btn');
     const deleteLectureBtn = e.target.closest('.delete-lecture-btn');
-    const lectureRow = e.target.closest('.lecture-row');
+    const deleteSessionBtn = e.target.closest('.delete-session-btn');
+    const sessionRow = e.target.closest('.session-row');
 
     if(addLectureBtn){
       const yearId = addLectureBtn.dataset.yearId;
@@ -623,6 +681,14 @@
       if(!name || !name.trim()) return;
       try{ await addLecture(yearId, name.trim()); }
       catch(err){ alert('강의 추가에 실패했습니다.\n' + err.message); }
+      return;
+    }
+    if(addSessionBtn){
+      const lectureId = addSessionBtn.dataset.lectureId;
+      const name = prompt('새 수업 이름을 입력하세요 (예: 9/10 수업, 1차시)');
+      if(!name || !name.trim()) return;
+      try{ await addSession(lectureId, name.trim()); }
+      catch(err){ alert('수업 추가에 실패했습니다.\n' + err.message); }
       return;
     }
     if(renameYearBtn){
@@ -645,11 +711,21 @@
       catch(err){ alert('이름 수정에 실패했습니다.\n' + err.message); }
       return;
     }
+    if(renameSessionBtn){
+      const sessionId = renameSessionBtn.dataset.sessionId;
+      const session = sessions.find(s=>s.id===sessionId);
+      if(!session) return;
+      const name = prompt('수업 이름을 수정하세요', session.name);
+      if(!name || !name.trim() || name.trim()===session.name) return;
+      try{ await renameSession(sessionId, name.trim()); }
+      catch(err){ alert('이름 수정에 실패했습니다.\n' + err.message); }
+      return;
+    }
     if(deleteYearBtn){
       const yearId = deleteYearBtn.dataset.yearId;
       const year = years.find(y=>y.id===yearId);
       if(!year) return;
-      if(!confirm(`"${year.name}" 연도와 그 안의 모든 강의·게시물이 함께 삭제됩니다. 계속할까요?`)) return;
+      if(!confirm(`"${year.name}" 연도와 그 안의 모든 강의·수업·게시물이 함께 삭제됩니다. 계속할까요?`)) return;
       try{ await deleteYearCascade(year); }
       catch(err){ alert('삭제에 실패했습니다.\n' + err.message); }
       return;
@@ -658,13 +734,22 @@
       const lectureId = deleteLectureBtn.dataset.lectureId;
       const lecture = lectures.find(l=>l.id===lectureId);
       if(!lecture) return;
-      if(!confirm(`"${lecture.name}" 강의와 그 안의 모든 게시물이 함께 삭제됩니다. 계속할까요?`)) return;
+      if(!confirm(`"${lecture.name}" 강의와 그 안의 모든 수업·게시물이 함께 삭제됩니다. 계속할까요?`)) return;
       try{ await deleteLectureCascade(lecture); }
       catch(err){ alert('삭제에 실패했습니다.\n' + err.message); }
       return;
     }
-    if(lectureRow){
-      selectLecture(lectureRow.dataset.lectureId);
+    if(deleteSessionBtn){
+      const sessionId = deleteSessionBtn.dataset.sessionId;
+      const session = sessions.find(s=>s.id===sessionId);
+      if(!session) return;
+      if(!confirm(`"${session.name}" 수업과 그 안의 모든 게시물이 함께 삭제됩니다. 계속할까요?`)) return;
+      try{ await deleteSessionCascade(session); }
+      catch(err){ alert('삭제에 실패했습니다.\n' + err.message); }
+      return;
+    }
+    if(sessionRow){
+      selectSession(sessionRow.dataset.sessionId);
       closeSidebarOnMobile();
     }
   });
@@ -776,9 +861,9 @@
 
   function render(){
     countBadge.textContent = `${posts.length}개의 게시물`;
-    document.getElementById('clearAllBtn').disabled = !selectedLectureId || posts.length===0;
-    if(!selectedLectureId){
-      board.innerHTML = `<div class="board-placeholder"><span>📁</span>왼쪽에서 강의를 선택하거나<br>새로 만들어보세요.</div>`;
+    document.getElementById('clearAllBtn').disabled = !selectedSessionId || posts.length===0;
+    if(!selectedSessionId){
+      board.innerHTML = `<div class="board-placeholder"><span>📁</span>왼쪽에서 수업을 선택하거나<br>새로 만들어보세요.</div>`;
       return;
     }
     if(posts.length===0){
@@ -892,7 +977,7 @@
   }
 
   fabAdd.addEventListener('click', ()=>{
-    if(!selectedLectureId){ alert('먼저 왼쪽에서 강의를 선택하거나 새로 추가해주세요.'); return; }
+    if(!selectedSessionId){ alert('먼저 왼쪽에서 수업을 선택하거나 새로 추가해주세요.'); return; }
     openAddModal();
   });
   cancelAddBtn.addEventListener('click', closeAddModal);
@@ -926,10 +1011,10 @@
     }
   });
 
-  /* ---------------- Clear all (current lecture only) ---------------- */
+  /* ---------------- Clear all (current session only) ---------------- */
   document.getElementById('clearAllBtn').addEventListener('click', async ()=>{
-    if(!selectedLectureId || posts.length===0) return;
-    if(!confirm('현재 강의의 모든 게시물을 삭제할까요? 이 작업은 되돌릴 수 없습니다.')) return;
+    if(!selectedSessionId || posts.length===0) return;
+    if(!confirm('현재 수업의 모든 게시물을 삭제할까요? 이 작업은 되돌릴 수 없습니다.')) return;
     const btn = document.getElementById('clearAllBtn');
     btn.disabled = true;
     try{
