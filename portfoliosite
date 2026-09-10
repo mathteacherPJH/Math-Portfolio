@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>문제풀이 공유 보드</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --accent:#5b6cff;
+    --accent-dark:#4351d8;
+    --pink:#ff6b8b;
+    --bg-top:#dfe6ff;
+    --bg-bottom:#ffe3ef;
+    --card-bg:#ffffff;
+    --text:#2b2d3a;
+    --muted:#8a8fa3;
+    --radius:16px;
+    --shadow:0 6px 20px rgba(40,44,80,.12);
+    --shadow-lg:0 20px 60px rgba(20,20,40,.35);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Malgun Gothic',system-ui,sans-serif;
+    color:var(--text);
+    background:
+      radial-gradient(circle at 15% 10%, rgba(255,255,255,.55), transparent 45%),
+      radial-gradient(circle at 85% 90%, rgba(255,255,255,.35), transparent 50%),
+      linear-gradient(160deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+    background-attachment:fixed;
+    min-height:100%;
+    padding-bottom:100px;
+  }
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:22px 28px 10px;
+    max-width:1400px;
+    margin:0 auto;
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand h1{font-size:22px; margin:0; font-weight:800; letter-spacing:-.3px;}
+  .brand p{margin:2px 0 0; font-size:13px; color:var(--muted);}
+  .header-actions{display:flex; align-items:center; gap:14px;}
+  .link-btn{
+    background:none; border:none; color:var(--muted); font-size:12.5px; cursor:pointer;
+    text-decoration:underline; padding:4px;
+  }
+  .link-btn:hover{color:var(--pink);}
+  .count-badge{
+    font-size:12.5px; color:var(--accent-dark); background:rgba(91,108,255,.12);
+    padding:5px 12px; border-radius:999px; font-weight:600;
+  }
+
+  .board{
+    max-width:1400px;
+    margin:10px auto 0;
+    padding:10px 24px;
+    column-count:4;
+    column-gap:20px;
+  }
+  @media (max-width:1100px){ .board{column-count:3;} }
+  @media (max-width:800px){ .board{column-count:2;} }
+  @media (max-width:520px){ .board{column-count:1; padding:10px 14px;} }
+
+  .card{
+    break-inside:avoid;
+    background:var(--card-bg);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    margin-bottom:20px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    animation:pop .25s ease;
+  }
+  @keyframes pop{ from{opacity:0; transform:translateY(8px) scale(.98);} to{opacity:1; transform:none;} }
+
+  .card-title{
+    font-weight:700;
+    font-size:16px;
+    padding:14px 16px 8px;
+    outline:none;
+    word-break:break-word;
+  }
+  .card-title.is-empty:before{ content:attr(data-placeholder); color:var(--muted); font-weight:500; }
+  .card-img-wrap{ width:100%; background:#eef0f7; cursor:zoom-in; }
+  .card-img{ width:100%; display:block; }
+  .card-answer{
+    padding:10px 16px 4px;
+    font-size:14px;
+    line-height:1.5;
+    color:#4a4d5c;
+    outline:none;
+    min-height:20px;
+    word-break:break-word;
+    border-top:1px dashed #eceef5;
+    margin-top:4px;
+  }
+  .card-answer.is-empty:before{ content:attr(data-placeholder); color:var(--muted); }
+  .card-footer{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 12px 12px 16px;
+  }
+  .card-time{ font-size:11px; color:var(--muted); }
+  .icon-btn{
+    border:none; background:none; cursor:pointer; font-size:15px; padding:6px 8px;
+    border-radius:8px; color:var(--muted); line-height:1;
+  }
+  .icon-btn:hover{ background:rgba(255,107,139,.12); color:var(--pink); }
+
+  .empty-state{
+    text-align:center; color:var(--muted); padding:80px 20px; font-size:15px;
+    column-span:all;
+  }
+  .empty-state span{ display:block; font-size:40px; margin-bottom:10px; }
+
+  .fab{
+    position:fixed; right:28px; bottom:28px;
+    width:60px; height:60px; border-radius:50%;
+    background:linear-gradient(135deg, var(--accent), var(--pink));
+    color:#fff; font-size:30px; border:none; cursor:pointer;
+    box-shadow:0 10px 25px rgba(91,108,255,.45);
+    display:flex; align-items:center; justify-content:center;
+    transition:transform .15s ease;
+    z-index:50;
+  }
+  .fab:hover{ transform:scale(1.06) rotate(90deg); }
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(20,20,35,.55);
+    display:flex; align-items:center; justify-content:center;
+    z-index:100; padding:16px; backdrop-filter:blur(2px);
+  }
+  .hidden{ display:none !important; }
+
+  .modal-panel{
+    background:#fff; border-radius:20px; width:100%; max-width:480px;
+    max-height:92vh; overflow-y:auto; box-shadow:var(--shadow-lg);
+    padding:22px 22px 20px;
+  }
+  .modal-panel h2{ margin:0 0 16px; font-size:19px; }
+  .field-label{ font-size:12.5px; font-weight:700; color:var(--muted); margin:14px 0 6px; display:block; }
+  .text-input, .textarea-input{
+    width:100%; border:1.5px solid #e7e8f2; border-radius:12px; padding:10px 12px;
+    font-family:inherit; font-size:14px; resize:vertical; outline:none;
+  }
+  .text-input:focus, .textarea-input:focus{ border-color:var(--accent); }
+
+  .dropzone{
+    border:2px dashed #d3d6ea; border-radius:14px; padding:30px 14px;
+    text-align:center; color:var(--muted); cursor:pointer; font-size:14px;
+    transition:.15s;
+  }
+  .dropzone.dragover{ border-color:var(--accent); background:rgba(91,108,255,.06); color:var(--accent-dark); }
+  .dropzone .big{ font-size:30px; display:block; margin-bottom:6px; }
+
+  .preview-wrap{ position:relative; }
+  .preview-wrap img{ width:100%; border-radius:14px; display:block; max-height:280px; object-fit:contain; background:#f2f2f7; }
+  .change-photo-btn{
+    margin-top:8px; background:none; border:none; color:var(--accent-dark); font-size:12.5px;
+    cursor:pointer; text-decoration:underline; padding:2px;
+  }
+
+  .checkbox-row{
+    display:flex; align-items:center; gap:8px; margin-top:14px; font-size:13.5px; color:#555;
+  }
+  .checkbox-row input{ width:16px; height:16px; accent-color:var(--accent); }
+
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+  .btn{
+    border:none; border-radius:11px; padding:10px 18px; font-size:14px; font-weight:600;
+    cursor:pointer; font-family:inherit;
+  }
+  .btn-ghost{ background:#f1f2f8; color:#555; }
+  .btn-ghost:hover{ background:#e6e7f2; }
+  .btn-primary{ background:linear-gradient(135deg, var(--accent), var(--pink)); color:#fff; }
+  .btn-primary:disabled{ opacity:.45; cursor:not-allowed; }
+  .btn-primary:not(:disabled):hover{ filter:brightness(1.05); }
+  .btn-danger{ background:#ffe6ea; color:#e0335a; }
+  .btn-danger:hover{ background:#ffd3da; }
+
+  /* ---- Lightbox ---- */
+  .lightbox-overlay{
+    position:fixed; inset:0; background:rgba(10,10,18,.9);
+    z-index:200; display:flex; flex-direction:column;
+  }
+  .lightbox-top{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 18px; color:#fff;
+  }
+  .lightbox-top .close-btn{
+    background:rgba(255,255,255,.12); border:none; color:#fff; width:34px; height:34px;
+    border-radius:50%; font-size:18px; cursor:pointer;
+  }
+  .lightbox-top .close-btn:hover{ background:rgba(255,255,255,.25); }
+  .lb-caption{ font-size:13px; color:#c9cbe0; }
+
+  .lightbox-viewport{
+    flex:1; display:flex; align-items:center; justify-content:center;
+    overflow:hidden; touch-action:none; position:relative; min-height:0;
+  }
+  #stageCanvas{
+    max-width:92vw; max-height:60vh; width:auto; height:auto;
+    background:#fff; box-shadow:0 10px 40px rgba(0,0,0,.5);
+    cursor:grab; touch-action:none; transform-origin:center center;
+  }
+  #stageCanvas.drawing{ cursor:crosshair; }
+  #stageCanvas.dragging{ cursor:grabbing; }
+
+  .lb-controls{
+    background:rgba(255,255,255,.06);
+    border-top:1px solid rgba(255,255,255,.08);
+    padding:12px 16px 16px;
+  }
+  .lb-row{
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+    justify-content:center; margin-bottom:10px;
+  }
+  .lb-row:last-child{ margin-bottom:0; }
+  .lb-btn{
+    background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15); color:#fff;
+    border-radius:10px; padding:8px 13px; font-size:13px; cursor:pointer; font-family:inherit;
+    display:flex; align-items:center; gap:6px; white-space:nowrap;
+  }
+  .lb-btn:hover{ background:rgba(255,255,255,.2); }
+  .lb-btn.active{ background:var(--accent); border-color:var(--accent); }
+  .lb-sep{ width:1px; height:22px; background:rgba(255,255,255,.18); margin:0 2px; }
+
+  .slider-group{ display:flex; align-items:center; gap:6px; color:#dfe0f2; font-size:12.5px; }
+  .slider-group input[type=range]{ accent-color:var(--pink); width:90px; }
+
+  .pen-options{ display:flex; align-items:center; gap:8px; }
+  .pen-swatch{
+    width:22px; height:22px; border-radius:50%; border:2px solid rgba(255,255,255,.6); cursor:pointer;
+  }
+  .pen-swatch.selected{ outline:2px solid #fff; outline-offset:2px; }
+
+  ::-webkit-scrollbar{ width:8px; }
+  ::-webkit-scrollbar-thumb{ background:#d6d8ea; border-radius:8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>📚 문제풀이 공유 보드</h1>
+    <p style="display:none;" id="subtitleHolder"></p>
+  </div>
+  <div class="header-actions">
+    <span class="count-badge" id="countBadge">0개의 게시물</span>
+    <button class="link-btn" id="clearAllBtn">전체 삭제</button>
+  </div>
+</header>
+<div style="max-width:1400px;margin:-6px auto 0;padding:0 28px;">
+  <p style="font-size:13px;color:var(--muted);margin:0 0 4px;">사진을 올리고, 친구들의 풀이를 함께 확인해보세요 — 로그인 없이 바로 사용할 수 있어요.</p>
+</div>
+
+<main class="board" id="board"></main>
+
+<button class="fab" id="fabAdd" title="사진 추가" aria-label="사진 추가">+</button>
+
+<!-- Add Modal -->
+<div class="modal-overlay hidden" id="addOverlay">
+  <div class="modal-panel">
+    <h2>새 게시물 추가</h2>
+
+    <div id="dropzone" class="dropzone">
+      <span class="big">📷</span>
+      클릭하거나 사진을 끌어다 놓으세요
+    </div>
+    <div id="previewWrap" class="preview-wrap hidden">
+      <img id="previewImg" alt="미리보기">
+      <button class="change-photo-btn" id="changePhotoBtn">다른 사진 선택</button>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" class="hidden">
+
+    <label class="checkbox-row">
+      <input type="checkbox" id="scanCheckbox">
+      🖨 스캔 효과 적용 (흑백 보정)
+    </label>
+
+    <label class="field-label">제목</label>
+    <input type="text" id="titleInput" class="text-input" placeholder="예: 3번 문제 풀이">
+
+    <label class="field-label">답변 / 풀이 설명</label>
+    <textarea id="answerInput" class="textarea-input" rows="3" placeholder="이 문제의 답이나 풀이 과정을 입력하세요"></textarea>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="cancelAddBtn">취소</button>
+      <button class="btn btn-primary" id="postBtn" disabled>게시하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox / Editor Modal -->
+<div class="lightbox-overlay hidden" id="lightboxOverlay">
+  <div class="lightbox-top">
+    <span class="lb-caption">사진을 클릭 후 드래그하면 이동, 휠로 확대/축소할 수 있어요</span>
+    <button class="close-btn" id="lbCloseBtn">✕</button>
+  </div>
+  <div class="lightbox-viewport" id="lbViewport">
+    <canvas id="stageCanvas"></canvas>
+  </div>
+  <div class="lb-controls">
+    <div class="lb-row">
+      <button class="lb-btn" id="zoomOutBtn">➖</button>
+      <button class="lb-btn" id="zoomResetBtn">100%</button>
+      <button class="lb-btn" id="zoomInBtn">➕</button>
+      <span class="lb-sep"></span>
+      <button class="lb-btn" id="rotateLeftBtn">⟲ 회전</button>
+      <button class="lb-btn" id="rotateRightBtn">⟳ 회전</button>
+      <span class="lb-sep"></span>
+      <button class="lb-btn" id="scanEffectBtn">🖨 스캔 효과</button>
+      <button class="lb-btn" id="drawModeBtn">✏️ 그리기</button>
+      <span class="lb-sep"></span>
+      <button class="lb-btn" id="undoBtn">↩ 실행취소</button>
+      <button class="lb-btn" id="resetOrigBtn">🔄 원본으로</button>
+    </div>
+    <div class="lb-row" id="penOptions">
+      <span class="pen-swatch selected" data-color="#ff3b3b" style="background:#ff3b3b;"></span>
+      <span class="pen-swatch" data-color="#3b7bff" style="background:#3b7bff;"></span>
+      <span class="pen-swatch" data-color="#ffd23b" style="background:#ffd23b;"></span>
+      <span class="pen-swatch" data-color="#111318" style="background:#111318;"></span>
+      <div class="slider-group">
+        펜 굵기
+        <input type="range" id="penWidthSlider" min="2" max="20" value="5">
+      </div>
+    </div>
+    <div class="lb-row">
+      <div class="slider-group">
+        밝기
+        <input type="range" id="brightnessSlider" min="-100" max="100" value="0">
+      </div>
+      <div class="slider-group">
+        대비
+        <input type="range" id="contrastSlider" min="50" max="150" value="100">
+      </div>
+      <span class="lb-sep"></span>
+      <button class="lb-btn btn-danger-lb" id="deletePostBtn" style="background:rgba(255,60,90,.25);">🗑 삭제</button>
+      <button class="lb-btn" id="saveEditBtn" style="background:linear-gradient(135deg,#5b6cff,#ff6b8b);">💾 저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- IndexedDB layer ---------------- */
+  const DB_NAME='problemBoardDB', DB_VERSION=1, STORE='posts';
+  function openDB(){
+    return new Promise((resolve,reject)=>{
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (e)=>{
+        const db = e.target.result;
+        if(!db.objectStoreNames.contains(STORE)){
+          const store = db.createObjectStore(STORE, {keyPath:'id', autoIncrement:true});
+          store.createIndex('createdAt','createdAt');
+        }
+      };
+      req.onsuccess = ()=> resolve(req.result);
+      req.onerror = ()=> reject(req.error);
+    });
+  }
+  const dbPromise = openDB();
+  async function dbAdd(post){
+    const db = await dbPromise;
+    return new Promise((res,rej)=>{
+      const tx = db.transaction(STORE,'readwrite');
+      const r = tx.objectStore(STORE).add(post);
+      r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+    });
+  }
+  async function dbGetAll(){
+    const db = await dbPromise;
+    return new Promise((res,rej)=>{
+      const tx = db.transaction(STORE,'readonly');
+      const r = tx.objectStore(STORE).getAll();
+      r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+    });
+  }
+  async function dbPut(post){
+    const db = await dbPromise;
+    return new Promise((res,rej)=>{
+      const tx = db.transaction(STORE,'readwrite');
+      const r = tx.objectStore(STORE).put(post);
+      r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);
+    });
+  }
+  async function dbDelete(id){
+    const db = await dbPromise;
+    return new Promise((res,rej)=>{
+      const tx = db.transaction(STORE,'readwrite');
+      const r = tx.objectStore(STORE).delete(id);
+      r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);
+    });
+  }
+  async function dbClear(){
+    const db = await dbPromise;
+    return new Promise((res,rej)=>{
+      const tx = db.transaction(STORE,'readwrite');
+      const r = tx.objectStore(STORE).clear();
+      r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);
+    });
+  }
+
+  /* ---------------- State ---------------- */
+  let posts = [];
+
+  /* ---------------- Helpers ---------------- */
+  function escapeHTML(str){
+    return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function formatTime(ts){
+    const d = new Date(ts);
+    const pad = n=>String(n).padStart(2,'0');
+    return `${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function cloneCanvas(src){
+    const c = document.createElement('canvas');
+    c.width = src.width; c.height = src.height;
+    c.getContext('2d').drawImage(src,0,0);
+    return c;
+  }
+  function applyScannerEffect(ctx, canvasLike){
+    const w = canvasLike.width, h = canvasLike.height;
+    const imageData = ctx.getImageData(0,0,w,h);
+    const data = imageData.data;
+    let min=255, max=0;
+    const gray = new Float32Array(w*h);
+    for(let i=0;i<data.length;i+=4){
+      const g = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+      gray[i/4]=g;
+      if(g<min) min=g;
+      if(g>max) max=g;
+    }
+    // Guard against near-uniform images (e.g. a blank corner): a tiny
+    // range would blow the contrast stretch up to pure black/white.
+    const MIN_RANGE = 40;
+    const range = Math.max(max-min, MIN_RANGE);
+    for(let i=0;i<data.length;i+=4){
+      let v = (gray[i/4]-min)/range*255;
+      v = v<0?0:(v>255?255:v);
+      v = 255*Math.pow(v/255, 0.75); // brighten paper background
+      data[i]=data[i+1]=data[i+2]=v;
+    }
+    ctx.putImageData(imageData,0,0);
+  }
+  function applyBrightnessContrast(ctx, w, h, baseData, brightness, contrast){
+    const imageData = ctx.createImageData(w,h);
+    const data = imageData.data;
+    const c = contrast/100;
+    for(let i=0;i<baseData.length;i+=4){
+      for(let ch=0; ch<3; ch++){
+        let v = (baseData[i+ch]-128)*c + 128 + brightness;
+        data[i+ch] = v<0?0:(v>255?255:v);
+      }
+      data[i+3]=baseData[i+3];
+    }
+    ctx.putImageData(imageData,0,0);
+  }
+  function loadFileToCanvas(file){
+    return new Promise((resolve,reject)=>{
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        const img = new Image();
+        img.onload = ()=>{
+          const MAX=1600;
+          let w=img.width, h=img.height;
+          const scale = Math.min(1, MAX/Math.max(w,h));
+          w = Math.round(w*scale); h = Math.round(h*scale);
+          const canvas = document.createElement('canvas');
+          canvas.width=w; canvas.height=h;
+          canvas.getContext('2d').drawImage(img,0,0,w,h);
+          resolve(canvas);
+        };
+        img.onerror = reject;
+        img.src = reader.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+  function dataURLToImage(dataURL){
+    return new Promise((resolve,reject)=>{
+      const img = new Image();
+      img.onload = ()=>resolve(img);
+      img.onerror = reject;
+      img.src = dataURL;
+    });
+  }
+
+  /* ---------------- Render board ---------------- */
+  const board = document.getElementById('board');
+  const countBadge = document.getElementById('countBadge');
+
+  function cardHTML(p){
+    const titleEmpty = !p.title;
+    const answerEmpty = !p.answer;
+    return `<div class="card" data-id="${p.id}">
+      <div class="card-title ${titleEmpty?'is-empty':''}" contenteditable="true" data-field="title" data-placeholder="(제목 없음)">${escapeHTML(p.title||'')}</div>
+      <div class="card-img-wrap"><img class="card-img" src="${p.image}" alt="문제 풀이 사진"></div>
+      <div class="card-answer ${answerEmpty?'is-empty':''}" contenteditable="true" data-field="answer" data-placeholder="(답변 없음 — 클릭해서 입력)">${escapeHTML(p.answer||'')}</div>
+      <div class="card-footer">
+        <span class="card-time">${formatTime(p.createdAt)}</span>
+        <button class="icon-btn delete-btn" title="삭제">🗑</button>
+      </div>
+    </div>`;
+  }
+
+  function render(){
+    countBadge.textContent = `${posts.length}개의 게시물`;
+    if(posts.length===0){
+      board.innerHTML = `<div class="empty-state"><span>🗒️</span>아직 게시물이 없어요.<br>오른쪽 아래 + 버튼을 눌러 사진을 추가해보세요.</div>`;
+      return;
+    }
+    board.innerHTML = posts.map(cardHTML).join('');
+  }
+
+  board.addEventListener('click', (e)=>{
+    const card = e.target.closest('.card');
+    if(!card) return;
+    const id = Number(card.dataset.id);
+    if(e.target.classList.contains('delete-btn')){
+      handleDeleteFromCard(id);
+      return;
+    }
+    if(e.target.classList.contains('card-img')){
+      openLightbox(id);
+    }
+  });
+
+  board.addEventListener('blur', (e)=>{
+    const t = e.target;
+    if(t.dataset && t.dataset.field){
+      handleFieldEdit(t);
+    }
+  }, true);
+
+  board.addEventListener('input', (e)=>{
+    const t = e.target;
+    if(t.dataset && t.dataset.field){
+      t.classList.toggle('is-empty', t.innerText.trim()==='');
+    }
+  });
+
+  async function handleFieldEdit(el){
+    const card = el.closest('.card');
+    const id = Number(card.dataset.id);
+    const field = el.dataset.field;
+    const value = el.innerText.trim();
+    const post = posts.find(p=>p.id===id);
+    if(!post) return;
+    post[field] = value;
+    el.classList.toggle('is-empty', value==='');
+    await dbPut(post);
+  }
+
+  async function handleDeleteFromCard(id){
+    if(!confirm('이 게시물을 삭제할까요?')) return;
+    await dbDelete(id);
+    posts = posts.filter(p=>p.id!==id);
+    render();
+  }
+
+  /* ---------------- Add modal ---------------- */
+  const addOverlay = document.getElementById('addOverlay');
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const previewWrap = document.getElementById('previewWrap');
+  const previewImg = document.getElementById('previewImg');
+  const changePhotoBtn = document.getElementById('changePhotoBtn');
+  const scanCheckbox = document.getElementById('scanCheckbox');
+  const titleInput = document.getElementById('titleInput');
+  const answerInput = document.getElementById('answerInput');
+  const postBtn = document.getElementById('postBtn');
+  const cancelAddBtn = document.getElementById('cancelAddBtn');
+  const fabAdd = document.getElementById('fabAdd');
+
+  let pendingCanvas = null;
+  let pendingOriginalDataURL = null;
+  let pendingFinalDataURL = null;
+
+  function openAddModal(){
+    resetAddModal();
+    addOverlay.classList.remove('hidden');
+  }
+  function closeAddModal(){
+    addOverlay.classList.add('hidden');
+  }
+  function resetAddModal(){
+    pendingCanvas=null; pendingOriginalDataURL=null; pendingFinalDataURL=null;
+    dropzone.classList.remove('hidden');
+    previewWrap.classList.add('hidden');
+    scanCheckbox.checked=false;
+    titleInput.value=''; answerInput.value='';
+    postBtn.disabled=true;
+    fileInput.value='';
+  }
+
+  async function processFile(file){
+    if(!file || !file.type || !file.type.startsWith('image/')) return;
+    const canvas = await loadFileToCanvas(file);
+    pendingCanvas = canvas;
+    pendingOriginalDataURL = canvas.toDataURL('image/jpeg',0.9);
+    scanCheckbox.checked = false;
+    updateAddPreview();
+    dropzone.classList.add('hidden');
+    previewWrap.classList.remove('hidden');
+    postBtn.disabled=false;
+  }
+
+  function updateAddPreview(){
+    if(!pendingCanvas) return;
+    if(scanCheckbox.checked){
+      const tmp = cloneCanvas(pendingCanvas);
+      applyScannerEffect(tmp.getContext('2d'), tmp);
+      pendingFinalDataURL = tmp.toDataURL('image/jpeg',0.9);
+    } else {
+      pendingFinalDataURL = pendingOriginalDataURL;
+    }
+    previewImg.src = pendingFinalDataURL;
+  }
+
+  fabAdd.addEventListener('click', openAddModal);
+  cancelAddBtn.addEventListener('click', closeAddModal);
+  addOverlay.addEventListener('click', (e)=>{ if(e.target===addOverlay) closeAddModal(); });
+  dropzone.addEventListener('click', ()=>fileInput.click());
+  changePhotoBtn.addEventListener('click', ()=>fileInput.click());
+  fileInput.addEventListener('change', (e)=>{ const f=e.target.files[0]; if(f) processFile(f); });
+  dropzone.addEventListener('dragover', (e)=>{ e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', ()=>dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', (e)=>{
+    e.preventDefault(); dropzone.classList.remove('dragover');
+    const f = e.dataTransfer.files[0]; if(f) processFile(f);
+  });
+  scanCheckbox.addEventListener('change', updateAddPreview);
+
+  postBtn.addEventListener('click', async ()=>{
+    if(!pendingFinalDataURL) return;
+    const post = {
+      title: titleInput.value.trim(),
+      answer: answerInput.value.trim(),
+      image: pendingFinalDataURL,
+      createdAt: Date.now()
+    };
+    const id = await dbAdd(post);
+    post.id = id;
+    posts.unshift(post);
+    render();
+    closeAddModal();
+  });
+
+  /* ---------------- Clear all ---------------- */
+  document.getElementById('clearAllBtn').addEventListener('click', async ()=>{
+    if(posts.length===0) return;
+    if(!confirm('보드의 모든 게시물을 삭제할까요? 이 작업은 되돌릴 수 없습니다.')) return;
+    await dbClear();
+    posts=[];
+    render();
+  });
+
+  /* ---------------- Lightbox / Editor ---------------- */
+  const lightboxOverlay = document.getElementById('lightboxOverlay');
+  const lbViewport = document.getElementById('lbViewport');
+  const stageCanvas = document.getElementById('stageCanvas');
+  const stageCtx = stageCanvas.getContext('2d', {willReadFrequently:true});
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  const zoomResetBtn = document.getElementById('zoomResetBtn');
+  const rotateLeftBtn = document.getElementById('rotateLeftBtn');
+  const rotateRightBtn = document.getElementById('rotateRightBtn');
+  const scanEffectBtn = document.getElementById('scanEffectBtn');
+  const drawModeBtn = document.getElementById('drawModeBtn');
+  const undoBtn = document.getElementById('undoBtn');
+  const resetOrigBtn = document.getElementById('resetOrigBtn');
+  const saveEditBtn = document.getElementById('saveEditBtn');
+  const deletePostBtn = document.getElementById('deletePostBtn');
+  const lbCloseBtn = document.getElementById('lbCloseBtn');
+  const penOptions = document.getElementById('penOptions');
+  const penWidthSlider = document.getElementById('penWidthSlider');
+  const brightnessSlider = document.getElementById('brightnessSlider');
+  const contrastSlider = document.getElementById('contrastSlider');
+
+  let currentId = null;
+  let origAtOpen = null;
+  let scale=1, tx=0, ty=0;
+  let mode = 'view'; // 'view' | 'draw'
+  let history = [];
+  let baseImageData = null;
+  let currentPenColor = '#ff3b3b';
+  let currentPenWidth = 5;
+  let isDrawing=false, lastPt=null;
+  let dragging=false, dragStart={x:0,y:0}, dragOrigin={x:0,y:0};
+  let bcHistoryPushed=false;
+
+  function applyTransform(){
+    stageCanvas.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+  }
+  function pushHistory(){
+    history.push(stageCanvas.toDataURL('image/jpeg',0.92));
+    if(history.length>15) history.shift();
+  }
+  async function drawDataURLToStage(dataURL){
+    const img = await dataURLToImage(dataURL);
+    stageCanvas.width = img.width;
+    stageCanvas.height = img.height;
+    stageCtx.clearRect(0,0,stageCanvas.width,stageCanvas.height);
+    stageCtx.drawImage(img,0,0);
+    baseImageData = stageCtx.getImageData(0,0,stageCanvas.width, stageCanvas.height).data.slice();
+    resetSliders();
+  }
+  function resetSliders(){
+    brightnessSlider.value=0; contrastSlider.value=100; bcHistoryPushed=false;
+  }
+  function setModeUI(){
+    drawModeBtn.classList.toggle('active', mode==='draw');
+    stageCanvas.classList.toggle('drawing', mode==='draw');
+    penOptions.style.visibility = mode==='draw' ? 'visible' : 'hidden';
+  }
+
+  async function openLightbox(id){
+    const post = posts.find(p=>p.id===id);
+    if(!post) return;
+    currentId = id;
+    origAtOpen = post.image;
+    history = [];
+    scale=1; tx=0; ty=0; mode='view';
+    setModeUI();
+    applyTransform();
+    await drawDataURLToStage(post.image);
+    lightboxOverlay.classList.remove('hidden');
+  }
+  function closeLightbox(){
+    lightboxOverlay.classList.add('hidden');
+    currentId = null;
+  }
+  lbCloseBtn.addEventListener('click', closeLightbox);
+  lightboxOverlay.addEventListener('click', (e)=>{ if(e.target===lightboxOverlay) closeLightbox(); });
+  document.addEventListener('keydown', (e)=>{
+    if(e.key==='Escape'){
+      if(!lightboxOverlay.classList.contains('hidden')) closeLightbox();
+      else if(!addOverlay.classList.contains('hidden')) closeAddModal();
+    }
+  });
+
+  /* zoom */
+  zoomInBtn.addEventListener('click', ()=>{ scale=Math.min(4, scale+0.25); applyTransform(); });
+  zoomOutBtn.addEventListener('click', ()=>{ scale=Math.max(0.5, scale-0.25); applyTransform(); });
+  zoomResetBtn.addEventListener('click', ()=>{ scale=1; tx=0; ty=0; applyTransform(); });
+  lbViewport.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const delta = e.deltaY<0 ? 0.12 : -0.12;
+    scale = Math.min(4, Math.max(0.5, scale+delta));
+    applyTransform();
+  }, {passive:false});
+
+  /* pan / draw pointer handling */
+  function getCanvasCoords(e){
+    const rect = stageCanvas.getBoundingClientRect();
+    const scaleX = stageCanvas.width/rect.width;
+    const scaleY = stageCanvas.height/rect.height;
+    return { x:(e.clientX-rect.left)*scaleX, y:(e.clientY-rect.top)*scaleY };
+  }
+  stageCanvas.addEventListener('pointerdown', (e)=>{
+    if(mode==='draw'){
+      pushHistory();
+      isDrawing=true;
+      lastPt = getCanvasCoords(e);
+      stageCanvas.setPointerCapture(e.pointerId);
+      return;
+    }
+    dragging=true;
+    dragStart={x:e.clientX,y:e.clientY};
+    dragOrigin={x:tx,y:ty};
+    stageCanvas.classList.add('dragging');
+    stageCanvas.setPointerCapture(e.pointerId);
+  });
+  stageCanvas.addEventListener('pointermove', (e)=>{
+    if(mode==='draw'){
+      if(!isDrawing) return;
+      const pt = getCanvasCoords(e);
+      stageCtx.strokeStyle=currentPenColor;
+      stageCtx.lineWidth=currentPenWidth;
+      stageCtx.lineCap='round'; stageCtx.lineJoin='round';
+      stageCtx.beginPath();
+      stageCtx.moveTo(lastPt.x,lastPt.y);
+      stageCtx.lineTo(pt.x,pt.y);
+      stageCtx.stroke();
+      lastPt=pt;
+      return;
+    }
+    if(!dragging) return;
+    tx = dragOrigin.x + (e.clientX-dragStart.x);
+    ty = dragOrigin.y + (e.clientY-dragStart.y);
+    applyTransform();
+  });
+  function endInteraction(){
+    if(mode==='draw' && isDrawing){
+      isDrawing=false;
+      baseImageData = stageCtx.getImageData(0,0,stageCanvas.width,stageCanvas.height).data.slice();
+    }
+    dragging=false;
+    stageCanvas.classList.remove('dragging');
+  }
+  stageCanvas.addEventListener('pointerup', endInteraction);
+  stageCanvas.addEventListener('pointerleave', ()=>{ if(mode!=='draw') dragging=false; stageCanvas.classList.remove('dragging'); });
+
+  drawModeBtn.addEventListener('click', ()=>{
+    mode = mode==='draw' ? 'view' : 'draw';
+    setModeUI();
+  });
+  penOptions.querySelectorAll('.pen-swatch').forEach(sw=>{
+    sw.addEventListener('click', ()=>{
+      penOptions.querySelectorAll('.pen-swatch').forEach(s=>s.classList.remove('selected'));
+      sw.classList.add('selected');
+      currentPenColor = sw.dataset.color;
+    });
+  });
+  penWidthSlider.addEventListener('input', ()=>{ currentPenWidth = Number(penWidthSlider.value); });
+
+  /* rotate */
+  function rotateStage(dir){
+    pushHistory();
+    const w = stageCanvas.width, h = stageCanvas.height;
+    const newCanvas = document.createElement('canvas');
+    newCanvas.width = h; newCanvas.height = w;
+    const nctx = newCanvas.getContext('2d');
+    if(dir===1){ nctx.translate(h,0); nctx.rotate(Math.PI/2); }
+    else { nctx.translate(0,w); nctx.rotate(-Math.PI/2); }
+    nctx.drawImage(stageCanvas,0,0);
+    stageCanvas.width = newCanvas.width;
+    stageCanvas.height = newCanvas.height;
+    stageCtx.clearRect(0,0,stageCanvas.width,stageCanvas.height);
+    stageCtx.drawImage(newCanvas,0,0);
+    baseImageData = stageCtx.getImageData(0,0,stageCanvas.width,stageCanvas.height).data.slice();
+    resetSliders();
+  }
+  rotateLeftBtn.addEventListener('click', ()=>rotateStage(-1));
+  rotateRightBtn.addEventListener('click', ()=>rotateStage(1));
+
+  /* scan effect */
+  scanEffectBtn.addEventListener('click', ()=>{
+    pushHistory();
+    applyScannerEffect(stageCtx, stageCanvas);
+    baseImageData = stageCtx.getImageData(0,0,stageCanvas.width,stageCanvas.height).data.slice();
+    resetSliders();
+  });
+
+  /* brightness / contrast */
+  function onBCInput(){
+    applyBrightnessContrast(stageCtx, stageCanvas.width, stageCanvas.height, baseImageData, Number(brightnessSlider.value), Number(contrastSlider.value));
+  }
+  function armBCHistory(){
+    if(!bcHistoryPushed){ pushHistory(); bcHistoryPushed=true; }
+  }
+  brightnessSlider.addEventListener('pointerdown', armBCHistory);
+  contrastSlider.addEventListener('pointerdown', armBCHistory);
+  brightnessSlider.addEventListener('input', onBCInput);
+  contrastSlider.addEventListener('input', onBCInput);
+  function bakeBC(){
+    if(!bcHistoryPushed) return;
+    baseImageData = stageCtx.getImageData(0,0,stageCanvas.width,stageCanvas.height).data.slice();
+    brightnessSlider.value=0; contrastSlider.value=100;
+    bcHistoryPushed=false;
+  }
+  brightnessSlider.addEventListener('change', bakeBC);
+  contrastSlider.addEventListener('change', bakeBC);
+
+  /* undo / reset original */
+  undoBtn.addEventListener('click', async ()=>{
+    if(!history.length) return;
+    const prev = history.pop();
+    await drawDataURLToStage(prev);
+  });
+  resetOrigBtn.addEventListener('click', async ()=>{
+    pushHistory();
+    await drawDataURLToStage(origAtOpen);
+  });
+
+  /* save / delete */
+  saveEditBtn.addEventListener('click', async ()=>{
+    if(currentId==null) return;
+    const dataURL = stageCanvas.toDataURL('image/jpeg',0.9);
+    const post = posts.find(p=>p.id===currentId);
+    if(!post) return;
+    post.image = dataURL;
+    await dbPut(post);
+    render();
+    closeLightbox();
+  });
+  deletePostBtn.addEventListener('click', async ()=>{
+    if(currentId==null) return;
+    if(!confirm('이 게시물을 삭제할까요?')) return;
+    await dbDelete(currentId);
+    posts = posts.filter(p=>p.id!==currentId);
+    render();
+    closeLightbox();
+  });
+
+  /* ---------------- Init ---------------- */
+  (async function init(){
+    posts = await dbGetAll();
+    posts.sort((a,b)=>b.createdAt-a.createdAt);
+    render();
+  })();
+
+})();
+</script>
+</body>
+</html>
