@@ -80,7 +80,9 @@
   .lecture-row .mini-btn{ color:inherit; opacity:.65; }
   .lecture-row.active .mini-btn:hover{ background:rgba(255,255,255,.25); color:#fff; }
   .lecture-row .mini-btn:hover{ opacity:1; }
-  .lecture-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lecture-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+  .row-actions{ display:flex; gap:2px; flex-shrink:0; }
+  .year-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .empty-tree-hint{ font-size:12px; color:var(--muted); padding:6px 8px; line-height:1.6; }
   .hamburger-btn{ display:none; background:none; border:none; font-size:22px; cursor:pointer; color:var(--text); margin-right:8px; padding:2px 4px; }
   .sidebar-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:140; }
@@ -432,6 +434,14 @@
     ensureReady();
     await addDoc(collection(db,'lectures'), { yearId, name, createdAt: Date.now() });
   }
+  async function renameYear(yearId, name){
+    ensureReady();
+    await updateDoc(doc(db,'years', yearId), { name });
+  }
+  async function renameLecture(lectureId, name){
+    ensureReady();
+    await updateDoc(doc(db,'lectures', lectureId), { name });
+  }
   async function deletePostsOfLecture(lectureId){
     const snap = await getDocs(query(collection(db,'posts'), where('lectureId','==', lectureId)));
     for(const d of snap.docs){
@@ -572,13 +582,17 @@
         ? yearLectures.map(l=>`
             <div class="lecture-row ${l.id===selectedLectureId?'active':''}" data-lecture-id="${l.id}">
               <span class="lecture-name">${escapeHTML(l.name)}</span>
-              <button class="mini-btn delete-lecture-btn" data-lecture-id="${l.id}" title="강의 삭제">✕</button>
+              <span class="row-actions">
+                <button class="mini-btn rename-lecture-btn" data-lecture-id="${l.id}" title="강의 이름 수정">✏️</button>
+                <button class="mini-btn delete-lecture-btn" data-lecture-id="${l.id}" title="강의 삭제">✕</button>
+              </span>
             </div>`).join('')
         : `<div class="empty-tree-hint">강의 없음</div>`;
       return `<div class="year-block" data-year-id="${y.id}">
         <div class="year-row">
-          <span>${escapeHTML(y.name)}</span>
+          <span class="year-name">${escapeHTML(y.name)}</span>
           <span class="year-actions">
+            <button class="mini-btn rename-year-btn" data-year-id="${y.id}" title="연도 이름 수정">✏️</button>
             <button class="mini-btn add-lecture-btn" data-year-id="${y.id}" title="강의 추가">＋</button>
             <button class="mini-btn delete-year-btn" data-year-id="${y.id}" title="연도 삭제">✕</button>
           </span>
@@ -597,6 +611,8 @@
 
   document.getElementById('yearTree').addEventListener('click', async (e)=>{
     const addLectureBtn = e.target.closest('.add-lecture-btn');
+    const renameYearBtn = e.target.closest('.rename-year-btn');
+    const renameLectureBtn = e.target.closest('.rename-lecture-btn');
     const deleteYearBtn = e.target.closest('.delete-year-btn');
     const deleteLectureBtn = e.target.closest('.delete-lecture-btn');
     const lectureRow = e.target.closest('.lecture-row');
@@ -607,6 +623,26 @@
       if(!name || !name.trim()) return;
       try{ await addLecture(yearId, name.trim()); }
       catch(err){ alert('강의 추가에 실패했습니다.\n' + err.message); }
+      return;
+    }
+    if(renameYearBtn){
+      const yearId = renameYearBtn.dataset.yearId;
+      const year = years.find(y=>y.id===yearId);
+      if(!year) return;
+      const name = prompt('연도 이름을 수정하세요', year.name);
+      if(!name || !name.trim() || name.trim()===year.name) return;
+      try{ await renameYear(yearId, name.trim()); }
+      catch(err){ alert('이름 수정에 실패했습니다.\n' + err.message); }
+      return;
+    }
+    if(renameLectureBtn){
+      const lectureId = renameLectureBtn.dataset.lectureId;
+      const lecture = lectures.find(l=>l.id===lectureId);
+      if(!lecture) return;
+      const name = prompt('강의 이름을 수정하세요', lecture.name);
+      if(!name || !name.trim() || name.trim()===lecture.name) return;
+      try{ await renameLecture(lectureId, name.trim()); }
+      catch(err){ alert('이름 수정에 실패했습니다.\n' + err.message); }
       return;
     }
     if(deleteYearBtn){
