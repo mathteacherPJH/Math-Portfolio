@@ -33,116 +33,142 @@
       linear-gradient(160deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
     background-attachment:fixed;
     min-height:100%;
-    padding-bottom:100px;
   }
+
+  /* ---- setup banner ---- */
+  #setupBanner{
+    position:fixed; top:0; left:0; right:0; z-index:500;
+    background:#3a2a12; color:#ffe8b8; font-size:13px; padding:10px 16px;
+    text-align:center; line-height:1.6;
+  }
+  #setupBanner code{ background:rgba(255,255,255,.15); padding:1px 6px; border-radius:5px; }
+
+  /* ---- layout ---- */
+  .app-layout{ display:flex; align-items:flex-start; min-height:100vh; }
+  .sidebar{
+    width:260px; flex-shrink:0; min-height:100vh;
+    background:rgba(255,255,255,.6); backdrop-filter:blur(8px);
+    border-right:1px solid rgba(255,255,255,.7);
+    padding:20px 14px 40px;
+  }
+  .sidebar-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .sidebar-header h2{ font-size:14px; margin:0; color:#555; }
+  .add-btn-sm{
+    background:var(--accent); color:#fff; border:none; border-radius:8px;
+    padding:5px 10px; font-size:12px; cursor:pointer; font-family:inherit; font-weight:600;
+  }
+  .add-btn-sm:hover{ background:var(--accent-dark); }
+  .year-block{ margin-bottom:6px; }
+  .year-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:7px 8px; border-radius:8px; font-weight:700; font-size:13.5px; color:#333;
+  }
+  .year-row .year-actions{ display:flex; gap:2px; }
+  .mini-btn{
+    background:none; border:none; cursor:pointer; color:var(--muted); font-size:13px;
+    padding:2px 5px; border-radius:6px; line-height:1;
+  }
+  .mini-btn:hover{ background:rgba(255,107,139,.15); color:var(--pink); }
+  .lecture-list{ margin-left:8px; margin-bottom:6px; }
+  .lecture-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:7px 10px; border-radius:8px; font-size:13px; color:#555;
+    cursor:pointer; margin-bottom:2px;
+  }
+  .lecture-row:hover{ background:rgba(91,108,255,.1); }
+  .lecture-row.active{ background:linear-gradient(135deg, var(--accent), var(--pink)); color:#fff; font-weight:600; }
+  .lecture-row .mini-btn{ color:inherit; opacity:.65; }
+  .lecture-row.active .mini-btn:hover{ background:rgba(255,255,255,.25); color:#fff; }
+  .lecture-row .mini-btn:hover{ opacity:1; }
+  .lecture-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .empty-tree-hint{ font-size:12px; color:var(--muted); padding:6px 8px; line-height:1.6; }
+  .hamburger-btn{ display:none; background:none; border:none; font-size:22px; cursor:pointer; color:var(--text); margin-right:8px; padding:2px 4px; }
+  .sidebar-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:140; }
+
+  @media (max-width:860px){
+    .sidebar{
+      position:fixed; left:0; top:0; height:100vh; z-index:150;
+      transform:translateX(-100%); transition:transform .2s ease; box-shadow:var(--shadow-lg);
+      overflow-y:auto;
+    }
+    .sidebar.open{ transform:translateX(0); }
+    .hamburger-btn{ display:inline-block; }
+  }
+
+  .main-area{ flex:1; min-width:0; padding-bottom:100px; }
+
   header{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:22px 28px 10px;
-    max-width:1400px;
-    margin:0 auto;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:22px 28px 10px; max-width:1400px; margin:0 auto;
   }
-  .brand{display:flex; align-items:center; gap:10px;}
-  .brand h1{font-size:22px; margin:0; font-weight:800; letter-spacing:-.3px;}
-  .brand p{margin:2px 0 0; font-size:13px; color:var(--muted);}
-  .header-actions{display:flex; align-items:center; gap:14px;}
+  .brand{ display:flex; align-items:center; gap:6px; min-width:0; }
+  .brand h1{ font-size:21px; margin:0; font-weight:800; letter-spacing:-.3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .header-actions{ display:flex; align-items:center; gap:14px; flex-shrink:0; }
   .link-btn{
     background:none; border:none; color:var(--muted); font-size:12.5px; cursor:pointer;
     text-decoration:underline; padding:4px;
   }
-  .link-btn:hover{color:var(--pink);}
+  .link-btn:hover{ color:var(--pink); }
+  .link-btn:disabled{ opacity:.4; cursor:not-allowed; text-decoration:none; }
   .count-badge{
     font-size:12.5px; color:var(--accent-dark); background:rgba(91,108,255,.12);
-    padding:5px 12px; border-radius:999px; font-weight:600;
+    padding:5px 12px; border-radius:999px; font-weight:600; white-space:nowrap;
   }
 
+  #boardSubtitle{ max-width:1400px; margin:-6px auto 0; padding:0 28px 4px; font-size:13px; color:var(--muted); }
+
   .board{
-    max-width:1400px;
-    margin:10px auto 0;
-    padding:10px 24px;
-    column-count:4;
-    column-gap:20px;
+    max-width:1400px; margin:10px auto 0; padding:10px 24px;
+    column-count:4; column-gap:20px;
   }
   @media (max-width:1100px){ .board{column-count:3;} }
   @media (max-width:800px){ .board{column-count:2;} }
   @media (max-width:520px){ .board{column-count:1; padding:10px 14px;} }
 
   .card{
-    break-inside:avoid;
-    background:var(--card-bg);
-    border-radius:var(--radius);
-    box-shadow:var(--shadow);
-    margin-bottom:20px;
-    overflow:hidden;
-    display:flex;
-    flex-direction:column;
-    animation:pop .25s ease;
+    break-inside:avoid; background:var(--card-bg); border-radius:var(--radius);
+    box-shadow:var(--shadow); margin-bottom:20px; overflow:hidden;
+    display:flex; flex-direction:column; animation:pop .25s ease;
   }
   @keyframes pop{ from{opacity:0; transform:translateY(8px) scale(.98);} to{opacity:1; transform:none;} }
 
-  .card-title{
-    font-weight:700;
-    font-size:16px;
-    padding:14px 16px 8px;
-    outline:none;
-    word-break:break-word;
-  }
+  .card-title{ font-weight:700; font-size:16px; padding:14px 16px 8px; outline:none; word-break:break-word; }
   .card-title.is-empty:before{ content:attr(data-placeholder); color:var(--muted); font-weight:500; }
   .card-img-wrap{ width:100%; background:#eef0f7; cursor:zoom-in; }
   .card-img{ width:100%; display:block; }
   .card-answer{
-    padding:10px 16px 4px;
-    font-size:14px;
-    line-height:1.5;
-    color:#4a4d5c;
-    outline:none;
-    min-height:20px;
-    word-break:break-word;
-    border-top:1px dashed #eceef5;
-    margin-top:4px;
+    padding:10px 16px 4px; font-size:14px; line-height:1.5; color:#4a4d5c;
+    outline:none; min-height:20px; word-break:break-word;
+    border-top:1px dashed #eceef5; margin-top:4px;
   }
   .card-answer.is-empty:before{ content:attr(data-placeholder); color:var(--muted); }
-  .card-footer{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:8px 12px 12px 16px;
-  }
-  .card-time{ font-size:11px; color:var(--muted); }
+  .card-footer{ display:flex; align-items:center; justify-content:flex-end; padding:8px 10px 12px; }
   .icon-btn{
     border:none; background:none; cursor:pointer; font-size:15px; padding:6px 8px;
     border-radius:8px; color:var(--muted); line-height:1;
   }
   .icon-btn:hover{ background:rgba(255,107,139,.12); color:var(--pink); }
 
-  .empty-state{
-    text-align:center; color:var(--muted); padding:80px 20px; font-size:15px;
-    column-span:all;
-  }
-  .empty-state span{ display:block; font-size:40px; margin-bottom:10px; }
+  .empty-state, .board-placeholder{ text-align:center; color:var(--muted); padding:80px 20px; font-size:15px; column-span:all; }
+  .empty-state span, .board-placeholder span{ display:block; font-size:40px; margin-bottom:10px; }
 
   .fab{
-    position:fixed; right:28px; bottom:28px;
-    width:60px; height:60px; border-radius:50%;
-    background:linear-gradient(135deg, var(--accent), var(--pink));
-    color:#fff; font-size:30px; border:none; cursor:pointer;
-    box-shadow:0 10px 25px rgba(91,108,255,.45);
-    display:flex; align-items:center; justify-content:center;
-    transition:transform .15s ease;
-    z-index:50;
+    position:fixed; right:28px; bottom:28px; width:60px; height:60px; border-radius:50%;
+    background:linear-gradient(135deg, var(--accent), var(--pink)); color:#fff; font-size:30px;
+    border:none; cursor:pointer; box-shadow:0 10px 25px rgba(91,108,255,.45);
+    display:flex; align-items:center; justify-content:center; transition:transform .15s ease; z-index:50;
   }
   .fab:hover{ transform:scale(1.06) rotate(90deg); }
 
   .modal-overlay{
-    position:fixed; inset:0; background:rgba(20,20,35,.55);
-    display:flex; align-items:center; justify-content:center;
-    z-index:100; padding:16px; backdrop-filter:blur(2px);
+    position:fixed; inset:0; background:rgba(20,20,35,.55); display:flex; align-items:center;
+    justify-content:center; z-index:100; padding:16px; backdrop-filter:blur(2px);
   }
   .hidden{ display:none !important; }
 
   .modal-panel{
-    background:#fff; border-radius:20px; width:100%; max-width:480px;
-    max-height:92vh; overflow-y:auto; box-shadow:var(--shadow-lg);
-    padding:22px 22px 20px;
+    background:#fff; border-radius:20px; width:100%; max-width:480px; max-height:92vh;
+    overflow-y:auto; box-shadow:var(--shadow-lg); padding:22px 22px 20px;
   }
   .modal-panel h2{ margin:0 0 16px; font-size:19px; }
   .field-label{ font-size:12.5px; font-weight:700; color:var(--muted); margin:14px 0 6px; display:block; }
@@ -153,9 +179,8 @@
   .text-input:focus, .textarea-input:focus{ border-color:var(--accent); }
 
   .dropzone{
-    border:2px dashed #d3d6ea; border-radius:14px; padding:30px 14px;
-    text-align:center; color:var(--muted); cursor:pointer; font-size:14px;
-    transition:.15s;
+    border:2px dashed #d3d6ea; border-radius:14px; padding:30px 14px; text-align:center;
+    color:var(--muted); cursor:pointer; font-size:14px; transition:.15s;
   }
   .dropzone.dragover{ border-color:var(--accent); background:rgba(91,108,255,.06); color:var(--accent-dark); }
   .dropzone .big{ font-size:30px; display:block; margin-bottom:6px; }
@@ -167,33 +192,20 @@
     cursor:pointer; text-decoration:underline; padding:2px;
   }
 
-  .checkbox-row{
-    display:flex; align-items:center; gap:8px; margin-top:14px; font-size:13.5px; color:#555;
-  }
+  .checkbox-row{ display:flex; align-items:center; gap:8px; margin-top:14px; font-size:13.5px; color:#555; }
   .checkbox-row input{ width:16px; height:16px; accent-color:var(--accent); }
 
   .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
-  .btn{
-    border:none; border-radius:11px; padding:10px 18px; font-size:14px; font-weight:600;
-    cursor:pointer; font-family:inherit;
-  }
+  .btn{ border:none; border-radius:11px; padding:10px 18px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; }
   .btn-ghost{ background:#f1f2f8; color:#555; }
   .btn-ghost:hover{ background:#e6e7f2; }
   .btn-primary{ background:linear-gradient(135deg, var(--accent), var(--pink)); color:#fff; }
   .btn-primary:disabled{ opacity:.45; cursor:not-allowed; }
   .btn-primary:not(:disabled):hover{ filter:brightness(1.05); }
-  .btn-danger{ background:#ffe6ea; color:#e0335a; }
-  .btn-danger:hover{ background:#ffd3da; }
 
   /* ---- Lightbox ---- */
-  .lightbox-overlay{
-    position:fixed; inset:0; background:rgba(10,10,18,.9);
-    z-index:200; display:flex; flex-direction:column;
-  }
-  .lightbox-top{
-    display:flex; justify-content:space-between; align-items:center;
-    padding:12px 18px; color:#fff;
-  }
+  .lightbox-overlay{ position:fixed; inset:0; background:rgba(10,10,18,.9); z-index:200; display:flex; flex-direction:column; }
+  .lightbox-top{ display:flex; justify-content:space-between; align-items:center; padding:12px 18px; color:#fff; }
   .lightbox-top .close-btn{
     background:rgba(255,255,255,.12); border:none; color:#fff; width:34px; height:34px;
     border-radius:50%; font-size:18px; cursor:pointer;
@@ -201,27 +213,16 @@
   .lightbox-top .close-btn:hover{ background:rgba(255,255,255,.25); }
   .lb-caption{ font-size:13px; color:#c9cbe0; }
 
-  .lightbox-viewport{
-    flex:1; display:flex; align-items:center; justify-content:center;
-    overflow:hidden; touch-action:none; position:relative; min-height:0;
-  }
+  .lightbox-viewport{ flex:1; display:flex; align-items:center; justify-content:center; overflow:hidden; touch-action:none; position:relative; min-height:0; }
   #stageCanvas{
-    max-width:92vw; max-height:60vh; width:auto; height:auto;
-    background:#fff; box-shadow:0 10px 40px rgba(0,0,0,.5);
-    cursor:grab; touch-action:none; transform-origin:center center;
+    max-width:92vw; max-height:60vh; width:auto; height:auto; background:#fff;
+    box-shadow:0 10px 40px rgba(0,0,0,.5); cursor:grab; touch-action:none; transform-origin:center center;
   }
   #stageCanvas.drawing{ cursor:crosshair; }
   #stageCanvas.dragging{ cursor:grabbing; }
 
-  .lb-controls{
-    background:rgba(255,255,255,.06);
-    border-top:1px solid rgba(255,255,255,.08);
-    padding:12px 16px 16px;
-  }
-  .lb-row{
-    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
-    justify-content:center; margin-bottom:10px;
-  }
+  .lb-controls{ background:rgba(255,255,255,.06); border-top:1px solid rgba(255,255,255,.08); padding:12px 16px 16px; }
+  .lb-row{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; margin-bottom:10px; }
   .lb-row:last-child{ margin-bottom:0; }
   .lb-btn{
     background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15); color:#fff;
@@ -230,15 +231,14 @@
   }
   .lb-btn:hover{ background:rgba(255,255,255,.2); }
   .lb-btn.active{ background:var(--accent); border-color:var(--accent); }
+  .lb-btn:disabled{ opacity:.4; cursor:not-allowed; }
   .lb-sep{ width:1px; height:22px; background:rgba(255,255,255,.18); margin:0 2px; }
 
   .slider-group{ display:flex; align-items:center; gap:6px; color:#dfe0f2; font-size:12.5px; }
   .slider-group input[type=range]{ accent-color:var(--pink); width:90px; }
 
   .pen-options{ display:flex; align-items:center; gap:8px; }
-  .pen-swatch{
-    width:22px; height:22px; border-radius:50%; border:2px solid rgba(255,255,255,.6); cursor:pointer;
-  }
+  .pen-swatch{ width:22px; height:22px; border-radius:50%; border:2px solid rgba(255,255,255,.6); cursor:pointer; }
   .pen-swatch.selected{ outline:2px solid #fff; outline-offset:2px; }
 
   ::-webkit-scrollbar{ width:8px; }
@@ -247,21 +247,34 @@
 </head>
 <body>
 
-<header>
-  <div class="brand">
-    <h1>📚 문제풀이 공유 보드</h1>
-    <p style="display:none;" id="subtitleHolder"></p>
-  </div>
-  <div class="header-actions">
-    <span class="count-badge" id="countBadge">0개의 게시물</span>
-    <button class="link-btn" id="clearAllBtn">전체 삭제</button>
-  </div>
-</header>
-<div style="max-width:1400px;margin:-6px auto 0;padding:0 28px;">
-  <p style="font-size:13px;color:var(--muted);margin:0 0 4px;">사진을 올리고, 친구들의 풀이를 함께 확인해보세요 — 로그인 없이 바로 사용할 수 있어요.</p>
-</div>
+<div id="setupBanner" class="hidden"></div>
 
-<main class="board" id="board"></main>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h2>📁 강의 목록</h2>
+      <button class="add-btn-sm" id="addYearBtn">+ 연도</button>
+    </div>
+    <div id="yearTree"></div>
+  </aside>
+  <div class="sidebar-backdrop hidden" id="sidebarBackdrop"></div>
+
+  <div class="main-area">
+    <header>
+      <div class="brand">
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="메뉴 열기">☰</button>
+        <h1 id="boardTitle">📚 문제풀이 공유 보드</h1>
+      </div>
+      <div class="header-actions">
+        <span class="count-badge" id="countBadge">0개의 게시물</span>
+        <button class="link-btn" id="clearAllBtn" disabled>이 강의 게시물 전체 삭제</button>
+      </div>
+    </header>
+    <p id="boardSubtitle">왼쪽에서 강의를 선택하거나 새로 만들어보세요.</p>
+
+    <main class="board" id="board"></main>
+  </div>
+</div>
 
 <button class="fab" id="fabAdd" title="사진 추가" aria-label="사진 추가">+</button>
 
@@ -342,85 +355,299 @@
         <input type="range" id="contrastSlider" min="50" max="150" value="100">
       </div>
       <span class="lb-sep"></span>
-      <button class="lb-btn btn-danger-lb" id="deletePostBtn" style="background:rgba(255,60,90,.25);">🗑 삭제</button>
+      <button class="lb-btn" id="deletePostBtn" style="background:rgba(255,60,90,.25);">🗑 삭제</button>
       <button class="lb-btn" id="saveEditBtn" style="background:linear-gradient(135deg,#5b6cff,#ff6b8b);">💾 저장</button>
     </div>
   </div>
 </div>
 
-<script>
-(function(){
-  "use strict";
+<script type="module">
+  /* =========================================================================
+     Firebase 설정
+     ------------------------------------------------------------------------
+     아래 firebaseConfig 값을 본인의 Firebase 프로젝트 설정으로 바꿔주세요.
+     (Firebase 콘솔 > 프로젝트 설정 > 내 앱 에서 확인할 수 있습니다.)
+  ========================================================================= */
+  const firebaseConfig = {
+    apiKey: "AIzaSyBS2xSA0C1bUwQD-Cb2edwEpq5VcITZNnE",
+    authDomain: "math-portfolio-ac7b2.firebaseapp.com",
+    projectId: "math-portfolio-ac7b2",
+    storageBucket: "math-portfolio-ac7b2.firebasestorage.app",
+    messagingSenderId: "887961048342",
+    appId: "1:887961048342:web:b34bc7504c8f915ad3ac37"
+  };
 
-  /* ---------------- IndexedDB layer ---------------- */
-  const DB_NAME='problemBoardDB', DB_VERSION=1, STORE='posts';
-  function openDB(){
-    return new Promise((resolve,reject)=>{
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded = (e)=>{
-        const db = e.target.result;
-        if(!db.objectStoreNames.contains(STORE)){
-          const store = db.createObjectStore(STORE, {keyPath:'id', autoIncrement:true});
-          store.createIndex('createdAt','createdAt');
-        }
-      };
-      req.onsuccess = ()=> resolve(req.result);
-      req.onerror = ()=> reject(req.error);
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+  import {
+    getFirestore, collection, doc, addDoc, updateDoc, deleteDoc,
+    onSnapshot, query, where, getDocs
+  } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+  import {
+    getStorage, ref, uploadString, getDownloadURL, deleteObject
+  } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-storage.js";
+
+  let app, db, storage;
+  let firebaseReady = false;
+
+  function showSetupBanner(html){
+    const el = document.getElementById('setupBanner');
+    el.innerHTML = html;
+    el.classList.remove('hidden');
+  }
+  function hideSetupBanner(){
+    document.getElementById('setupBanner').classList.add('hidden');
+  }
+
+  function initFirebase(){
+    if(!firebaseConfig.apiKey || firebaseConfig.apiKey.indexOf('여기에') !== -1){
+      showSetupBanner('⚠️ 아직 Firebase 설정이 완료되지 않았어요. 안내에 따라 이 파일 위쪽의 <code>firebaseConfig</code> 값을 채워주세요.');
+      return;
+    }
+    try{
+      app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+      storage = getStorage(app);
+      firebaseReady = true;
+      subscribeYearsAndLectures();
+    }catch(err){
+      showSetupBanner('⚠️ Firebase 초기화에 실패했습니다: ' + err.message);
+    }
+  }
+
+  function ensureReady(){
+    if(!firebaseReady) throw new Error('Firebase 설정이 완료되지 않았습니다. 안내를 참고해 설정을 마쳐주세요.');
+  }
+
+  /* ---------------- id helper (no crypto.randomUUID dependency) ---------------- */
+  function genId(){
+    return 'img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10);
+  }
+
+  /* ---------------- Remote data layer ---------------- */
+  async function addYear(name){
+    ensureReady();
+    await addDoc(collection(db,'years'), { name, createdAt: Date.now() });
+  }
+  async function addLecture(yearId, name){
+    ensureReady();
+    await addDoc(collection(db,'lectures'), { yearId, name, createdAt: Date.now() });
+  }
+  async function deletePostsOfLecture(lectureId){
+    const snap = await getDocs(query(collection(db,'posts'), where('lectureId','==', lectureId)));
+    for(const d of snap.docs){
+      const data = d.data();
+      if(data.storagePath){
+        try{ await deleteObject(ref(storage, data.storagePath)); }catch(e){ /* already gone */ }
+      }
+      await deleteDoc(doc(db,'posts', d.id));
+    }
+  }
+  async function deleteLectureCascade(lecture){
+    ensureReady();
+    await deletePostsOfLecture(lecture.id);
+    await deleteDoc(doc(db,'lectures', lecture.id));
+    if(selectedLectureId === lecture.id) selectLecture(null);
+  }
+  async function deleteYearCascade(year){
+    ensureReady();
+    const yearLectures = lectures.filter(l=>l.yearId===year.id);
+    for(const lec of yearLectures){
+      await deletePostsOfLecture(lec.id);
+      await deleteDoc(doc(db,'lectures', lec.id));
+      if(selectedLectureId === lec.id) selectLecture(null);
+    }
+    await deleteDoc(doc(db,'years', year.id));
+  }
+
+  async function remoteCreatePost({title, answer, imageDataURL}){
+    ensureReady();
+    if(!selectedLectureId) throw new Error('강의가 선택되지 않았습니다.');
+    const storagePath = `posts/${genId()}.jpg`;
+    const sRef = ref(storage, storagePath);
+    await uploadString(sRef, imageDataURL, 'data_url');
+    const imageURL = await getDownloadURL(sRef);
+    await addDoc(collection(db,'posts'), {
+      lectureId: selectedLectureId, title, answer, image: imageURL, storagePath, createdAt: Date.now()
     });
   }
-  const dbPromise = openDB();
-  async function dbAdd(post){
-    const db = await dbPromise;
-    return new Promise((res,rej)=>{
-      const tx = db.transaction(STORE,'readwrite');
-      const r = tx.objectStore(STORE).add(post);
-      r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
-    });
+  async function remoteUpdatePostFields(id, changes){
+    ensureReady();
+    await updateDoc(doc(db,'posts', id), changes);
   }
-  async function dbGetAll(){
-    const db = await dbPromise;
-    return new Promise((res,rej)=>{
-      const tx = db.transaction(STORE,'readonly');
-      const r = tx.objectStore(STORE).getAll();
-      r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
-    });
+  async function remoteUpdatePostImage(post, newDataURL){
+    ensureReady();
+    const sRef = ref(storage, post.storagePath);
+    await uploadString(sRef, newDataURL, 'data_url');
+    const imageURL = await getDownloadURL(sRef);
+    await updateDoc(doc(db,'posts', post.id), { image: imageURL });
   }
-  async function dbPut(post){
-    const db = await dbPromise;
-    return new Promise((res,rej)=>{
-      const tx = db.transaction(STORE,'readwrite');
-      const r = tx.objectStore(STORE).put(post);
-      r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);
-    });
-  }
-  async function dbDelete(id){
-    const db = await dbPromise;
-    return new Promise((res,rej)=>{
-      const tx = db.transaction(STORE,'readwrite');
-      const r = tx.objectStore(STORE).delete(id);
-      r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);
-    });
-  }
-  async function dbClear(){
-    const db = await dbPromise;
-    return new Promise((res,rej)=>{
-      const tx = db.transaction(STORE,'readwrite');
-      const r = tx.objectStore(STORE).clear();
-      r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);
-    });
+  async function remoteDeletePost(post){
+    ensureReady();
+    if(post.storagePath){
+      try{ await deleteObject(ref(storage, post.storagePath)); }catch(e){ /* already gone */ }
+    }
+    await deleteDoc(doc(db,'posts', post.id));
   }
 
   /* ---------------- State ---------------- */
+  let years = [];
+  let lectures = [];
   let posts = [];
+  let selectedLectureId = null;
+  try{ selectedLectureId = localStorage.getItem('selectedLectureId') || null; }catch(e){}
+  let unsubscribePosts = null;
+  let restoredSelection = false;
+
+  function subscribeYearsAndLectures(){
+    onSnapshot(collection(db,'years'), snap=>{
+      years = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      renderSidebar();
+      hideSetupBanner();
+    }, err=>{ showSetupBanner('⚠️ 연도 목록을 불러오지 못했습니다: ' + err.message); });
+
+    onSnapshot(collection(db,'lectures'), snap=>{
+      lectures = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      if(!restoredSelection){
+        restoredSelection = true;
+        if(selectedLectureId && lectures.some(l=>l.id===selectedLectureId)){
+          selectLecture(selectedLectureId);
+        }
+      }
+      renderSidebar();
+      updateBoardHeader();
+    }, err=>{ showSetupBanner('⚠️ 강의 목록을 불러오지 못했습니다: ' + err.message); });
+  }
+
+  function selectLecture(lectureId){
+    selectedLectureId = lectureId;
+    try{ localStorage.setItem('selectedLectureId', lectureId || ''); }catch(e){}
+    if(unsubscribePosts){ unsubscribePosts(); unsubscribePosts = null; }
+    posts = [];
+    if(!lectureId){
+      updateBoardHeader();
+      render();
+      renderSidebar();
+      return;
+    }
+    const q = query(collection(db,'posts'), where('lectureId','==', lectureId));
+    unsubscribePosts = onSnapshot(q, snap=>{
+      posts = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      posts.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+      render();
+    }, err=>{ showSetupBanner('⚠️ 게시물을 불러오지 못했습니다: ' + err.message); });
+    updateBoardHeader();
+    renderSidebar();
+  }
+
+  function updateBoardHeader(){
+    const boardTitle = document.getElementById('boardTitle');
+    const boardSubtitle = document.getElementById('boardSubtitle');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    if(!selectedLectureId){
+      boardTitle.textContent = '📚 문제풀이 공유 보드';
+      boardSubtitle.textContent = '왼쪽에서 강의를 선택하거나 새로 만들어보세요.';
+      clearAllBtn.disabled = true;
+      return;
+    }
+    const lecture = lectures.find(l=>l.id===selectedLectureId);
+    const year = lecture ? years.find(y=>y.id===lecture.yearId) : null;
+    if(lecture){
+      boardTitle.textContent = `📚 ${year ? year.name + ' · ' : ''}${lecture.name}`;
+      boardSubtitle.textContent = '사진을 올리고, 함께 풀이를 확인해보세요 — 로그인 없이 바로 사용할 수 있어요.';
+    }
+    clearAllBtn.disabled = posts.length===0;
+  }
+
+  /* ---------------- Sidebar rendering ---------------- */
+  function renderSidebar(){
+    const tree = document.getElementById('yearTree');
+    if(years.length===0){
+      tree.innerHTML = `<div class="empty-tree-hint">아직 연도가 없어요.<br>"+ 연도" 버튼으로 추가해보세요.</div>`;
+      return;
+    }
+    const sortedYears = [...years].sort((a,b)=> String(a.name).localeCompare(String(b.name), undefined, {numeric:true}));
+    tree.innerHTML = sortedYears.map(y=>{
+      const yearLectures = lectures.filter(l=>l.yearId===y.id).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+      const lecturesHTML = yearLectures.length
+        ? yearLectures.map(l=>`
+            <div class="lecture-row ${l.id===selectedLectureId?'active':''}" data-lecture-id="${l.id}">
+              <span class="lecture-name">${escapeHTML(l.name)}</span>
+              <button class="mini-btn delete-lecture-btn" data-lecture-id="${l.id}" title="강의 삭제">✕</button>
+            </div>`).join('')
+        : `<div class="empty-tree-hint">강의 없음</div>`;
+      return `<div class="year-block" data-year-id="${y.id}">
+        <div class="year-row">
+          <span>${escapeHTML(y.name)}</span>
+          <span class="year-actions">
+            <button class="mini-btn add-lecture-btn" data-year-id="${y.id}" title="강의 추가">＋</button>
+            <button class="mini-btn delete-year-btn" data-year-id="${y.id}" title="연도 삭제">✕</button>
+          </span>
+        </div>
+        <div class="lecture-list">${lecturesHTML}</div>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('addYearBtn').addEventListener('click', async ()=>{
+    const name = prompt('새 연도 이름을 입력하세요 (예: 2026)');
+    if(!name || !name.trim()) return;
+    try{ await addYear(name.trim()); }
+    catch(err){ alert('연도 추가에 실패했습니다.\n' + err.message); }
+  });
+
+  document.getElementById('yearTree').addEventListener('click', async (e)=>{
+    const addLectureBtn = e.target.closest('.add-lecture-btn');
+    const deleteYearBtn = e.target.closest('.delete-year-btn');
+    const deleteLectureBtn = e.target.closest('.delete-lecture-btn');
+    const lectureRow = e.target.closest('.lecture-row');
+
+    if(addLectureBtn){
+      const yearId = addLectureBtn.dataset.yearId;
+      const name = prompt('새 강의 이름을 입력하세요 (예: 경제수학 3반)');
+      if(!name || !name.trim()) return;
+      try{ await addLecture(yearId, name.trim()); }
+      catch(err){ alert('강의 추가에 실패했습니다.\n' + err.message); }
+      return;
+    }
+    if(deleteYearBtn){
+      const yearId = deleteYearBtn.dataset.yearId;
+      const year = years.find(y=>y.id===yearId);
+      if(!year) return;
+      if(!confirm(`"${year.name}" 연도와 그 안의 모든 강의·게시물이 함께 삭제됩니다. 계속할까요?`)) return;
+      try{ await deleteYearCascade(year); }
+      catch(err){ alert('삭제에 실패했습니다.\n' + err.message); }
+      return;
+    }
+    if(deleteLectureBtn){
+      const lectureId = deleteLectureBtn.dataset.lectureId;
+      const lecture = lectures.find(l=>l.id===lectureId);
+      if(!lecture) return;
+      if(!confirm(`"${lecture.name}" 강의와 그 안의 모든 게시물이 함께 삭제됩니다. 계속할까요?`)) return;
+      try{ await deleteLectureCascade(lecture); }
+      catch(err){ alert('삭제에 실패했습니다.\n' + err.message); }
+      return;
+    }
+    if(lectureRow){
+      selectLecture(lectureRow.dataset.lectureId);
+      closeSidebarOnMobile();
+    }
+  });
+
+  const sidebar = document.getElementById('sidebar');
+  const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+  document.getElementById('hamburgerBtn').addEventListener('click', ()=>{
+    sidebar.classList.add('open');
+    sidebarBackdrop.classList.remove('hidden');
+  });
+  sidebarBackdrop.addEventListener('click', closeSidebarOnMobile);
+  function closeSidebarOnMobile(){
+    sidebar.classList.remove('open');
+    sidebarBackdrop.classList.add('hidden');
+  }
 
   /* ---------------- Helpers ---------------- */
   function escapeHTML(str){
     return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-  function formatTime(ts){
-    const d = new Date(ts);
-    const pad = n=>String(n).padStart(2,'0');
-    return `${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
   function cloneCanvas(src){
     const c = document.createElement('canvas');
@@ -440,14 +667,12 @@
       if(g<min) min=g;
       if(g>max) max=g;
     }
-    // Guard against near-uniform images (e.g. a blank corner): a tiny
-    // range would blow the contrast stretch up to pure black/white.
     const MIN_RANGE = 40;
     const range = Math.max(max-min, MIN_RANGE);
     for(let i=0;i<data.length;i+=4){
       let v = (gray[i/4]-min)/range*255;
       v = v<0?0:(v>255?255:v);
-      v = 255*Math.pow(v/255, 0.75); // brighten paper background
+      v = 255*Math.pow(v/255, 0.75);
       data[i]=data[i+1]=data[i+2]=v;
     }
     ctx.putImageData(imageData,0,0);
@@ -508,7 +733,6 @@
       <div class="card-img-wrap"><img class="card-img" src="${p.image}" alt="문제 풀이 사진"></div>
       <div class="card-answer ${answerEmpty?'is-empty':''}" contenteditable="true" data-field="answer" data-placeholder="(답변 없음 — 클릭해서 입력)">${escapeHTML(p.answer||'')}</div>
       <div class="card-footer">
-        <span class="card-time">${formatTime(p.createdAt)}</span>
         <button class="icon-btn delete-btn" title="삭제">🗑</button>
       </div>
     </div>`;
@@ -516,6 +740,11 @@
 
   function render(){
     countBadge.textContent = `${posts.length}개의 게시물`;
+    document.getElementById('clearAllBtn').disabled = !selectedLectureId || posts.length===0;
+    if(!selectedLectureId){
+      board.innerHTML = `<div class="board-placeholder"><span>📁</span>왼쪽에서 강의를 선택하거나<br>새로 만들어보세요.</div>`;
+      return;
+    }
     if(posts.length===0){
       board.innerHTML = `<div class="empty-state"><span>🗒️</span>아직 게시물이 없어요.<br>오른쪽 아래 + 버튼을 눌러 사진을 추가해보세요.</div>`;
       return;
@@ -526,7 +755,7 @@
   board.addEventListener('click', (e)=>{
     const card = e.target.closest('.card');
     if(!card) return;
-    const id = Number(card.dataset.id);
+    const id = card.dataset.id;
     if(e.target.classList.contains('delete-btn')){
       handleDeleteFromCard(id);
       return;
@@ -538,35 +767,34 @@
 
   board.addEventListener('blur', (e)=>{
     const t = e.target;
-    if(t.dataset && t.dataset.field){
-      handleFieldEdit(t);
-    }
+    if(t.dataset && t.dataset.field) handleFieldEdit(t);
   }, true);
 
   board.addEventListener('input', (e)=>{
     const t = e.target;
-    if(t.dataset && t.dataset.field){
-      t.classList.toggle('is-empty', t.innerText.trim()==='');
-    }
+    if(t.dataset && t.dataset.field) t.classList.toggle('is-empty', t.innerText.trim()==='');
   });
 
   async function handleFieldEdit(el){
     const card = el.closest('.card');
-    const id = Number(card.dataset.id);
+    const id = card.dataset.id;
     const field = el.dataset.field;
     const value = el.innerText.trim();
     const post = posts.find(p=>p.id===id);
     if(!post) return;
+    if(post[field] === value) return;
     post[field] = value;
     el.classList.toggle('is-empty', value==='');
-    await dbPut(post);
+    try{ await remoteUpdatePostFields(id, {[field]: value}); }
+    catch(err){ alert('저장에 실패했습니다.\n' + err.message); }
   }
 
   async function handleDeleteFromCard(id){
     if(!confirm('이 게시물을 삭제할까요?')) return;
-    await dbDelete(id);
-    posts = posts.filter(p=>p.id!==id);
-    render();
+    const post = posts.find(p=>p.id===id);
+    if(!post) return;
+    try{ await remoteDeletePost(post); }
+    catch(err){ alert('삭제에 실패했습니다.\n' + err.message); }
   }
 
   /* ---------------- Add modal ---------------- */
@@ -591,9 +819,7 @@
     resetAddModal();
     addOverlay.classList.remove('hidden');
   }
-  function closeAddModal(){
-    addOverlay.classList.add('hidden');
-  }
+  function closeAddModal(){ addOverlay.classList.add('hidden'); }
   function resetAddModal(){
     pendingCanvas=null; pendingOriginalDataURL=null; pendingFinalDataURL=null;
     dropzone.classList.remove('hidden');
@@ -601,6 +827,7 @@
     scanCheckbox.checked=false;
     titleInput.value=''; answerInput.value='';
     postBtn.disabled=true;
+    postBtn.textContent='게시하기';
     fileInput.value='';
   }
 
@@ -628,7 +855,10 @@
     previewImg.src = pendingFinalDataURL;
   }
 
-  fabAdd.addEventListener('click', openAddModal);
+  fabAdd.addEventListener('click', ()=>{
+    if(!selectedLectureId){ alert('먼저 왼쪽에서 강의를 선택하거나 새로 추가해주세요.'); return; }
+    openAddModal();
+  });
   cancelAddBtn.addEventListener('click', closeAddModal);
   addOverlay.addEventListener('click', (e)=>{ if(e.target===addOverlay) closeAddModal(); });
   dropzone.addEventListener('click', ()=>fileInput.click());
@@ -644,26 +874,33 @@
 
   postBtn.addEventListener('click', async ()=>{
     if(!pendingFinalDataURL) return;
-    const post = {
-      title: titleInput.value.trim(),
-      answer: answerInput.value.trim(),
-      image: pendingFinalDataURL,
-      createdAt: Date.now()
-    };
-    const id = await dbAdd(post);
-    post.id = id;
-    posts.unshift(post);
-    render();
-    closeAddModal();
+    postBtn.disabled = true;
+    postBtn.textContent = '게시 중...';
+    try{
+      await remoteCreatePost({
+        title: titleInput.value.trim(),
+        answer: answerInput.value.trim(),
+        imageDataURL: pendingFinalDataURL
+      });
+      closeAddModal();
+    }catch(err){
+      alert('게시에 실패했습니다.\n' + err.message);
+      postBtn.disabled = false;
+      postBtn.textContent = '게시하기';
+    }
   });
 
-  /* ---------------- Clear all ---------------- */
+  /* ---------------- Clear all (current lecture only) ---------------- */
   document.getElementById('clearAllBtn').addEventListener('click', async ()=>{
-    if(posts.length===0) return;
-    if(!confirm('보드의 모든 게시물을 삭제할까요? 이 작업은 되돌릴 수 없습니다.')) return;
-    await dbClear();
-    posts=[];
-    render();
+    if(!selectedLectureId || posts.length===0) return;
+    if(!confirm('현재 강의의 모든 게시물을 삭제할까요? 이 작업은 되돌릴 수 없습니다.')) return;
+    const btn = document.getElementById('clearAllBtn');
+    btn.disabled = true;
+    try{
+      await Promise.all(posts.map(p=>remoteDeletePost(p).catch(e=>console.error(e))));
+    } finally {
+      btn.disabled = posts.length===0;
+    }
   });
 
   /* ---------------- Lightbox / Editor ---------------- */
@@ -691,7 +928,7 @@
   let currentId = null;
   let origAtOpen = null;
   let scale=1, tx=0, ty=0;
-  let mode = 'view'; // 'view' | 'draw'
+  let mode = 'view';
   let history = [];
   let baseImageData = null;
   let currentPenColor = '#ff3b3b';
@@ -750,7 +987,6 @@
     }
   });
 
-  /* zoom */
   zoomInBtn.addEventListener('click', ()=>{ scale=Math.min(4, scale+0.25); applyTransform(); });
   zoomOutBtn.addEventListener('click', ()=>{ scale=Math.max(0.5, scale-0.25); applyTransform(); });
   zoomResetBtn.addEventListener('click', ()=>{ scale=1; tx=0; ty=0; applyTransform(); });
@@ -761,7 +997,6 @@
     applyTransform();
   }, {passive:false});
 
-  /* pan / draw pointer handling */
   function getCanvasCoords(e){
     const rect = stageCanvas.getBoundingClientRect();
     const scaleX = stageCanvas.width/rect.width;
@@ -825,7 +1060,6 @@
   });
   penWidthSlider.addEventListener('input', ()=>{ currentPenWidth = Number(penWidthSlider.value); });
 
-  /* rotate */
   function rotateStage(dir){
     pushHistory();
     const w = stageCanvas.width, h = stageCanvas.height;
@@ -845,7 +1079,6 @@
   rotateLeftBtn.addEventListener('click', ()=>rotateStage(-1));
   rotateRightBtn.addEventListener('click', ()=>rotateStage(1));
 
-  /* scan effect */
   scanEffectBtn.addEventListener('click', ()=>{
     pushHistory();
     applyScannerEffect(stageCtx, stageCanvas);
@@ -853,13 +1086,10 @@
     resetSliders();
   });
 
-  /* brightness / contrast */
   function onBCInput(){
     applyBrightnessContrast(stageCtx, stageCanvas.width, stageCanvas.height, baseImageData, Number(brightnessSlider.value), Number(contrastSlider.value));
   }
-  function armBCHistory(){
-    if(!bcHistoryPushed){ pushHistory(); bcHistoryPushed=true; }
-  }
+  function armBCHistory(){ if(!bcHistoryPushed){ pushHistory(); bcHistoryPushed=true; } }
   brightnessSlider.addEventListener('pointerdown', armBCHistory);
   contrastSlider.addEventListener('pointerdown', armBCHistory);
   brightnessSlider.addEventListener('input', onBCInput);
@@ -873,7 +1103,6 @@
   brightnessSlider.addEventListener('change', bakeBC);
   contrastSlider.addEventListener('change', bakeBC);
 
-  /* undo / reset original */
   undoBtn.addEventListener('click', async ()=>{
     if(!history.length) return;
     const prev = history.pop();
@@ -884,34 +1113,40 @@
     await drawDataURLToStage(origAtOpen);
   });
 
-  /* save / delete */
   saveEditBtn.addEventListener('click', async ()=>{
     if(currentId==null) return;
-    const dataURL = stageCanvas.toDataURL('image/jpeg',0.9);
     const post = posts.find(p=>p.id===currentId);
     if(!post) return;
-    post.image = dataURL;
-    await dbPut(post);
-    render();
-    closeLightbox();
+    const dataURL = stageCanvas.toDataURL('image/jpeg',0.9);
+    saveEditBtn.disabled = true;
+    saveEditBtn.textContent = '저장 중...';
+    try{
+      await remoteUpdatePostImage(post, dataURL);
+      closeLightbox();
+    }catch(err){
+      alert('저장에 실패했습니다.\n' + err.message);
+    }finally{
+      saveEditBtn.disabled = false;
+      saveEditBtn.textContent = '💾 저장';
+    }
   });
   deletePostBtn.addEventListener('click', async ()=>{
     if(currentId==null) return;
     if(!confirm('이 게시물을 삭제할까요?')) return;
-    await dbDelete(currentId);
-    posts = posts.filter(p=>p.id!==currentId);
-    render();
-    closeLightbox();
+    const post = posts.find(p=>p.id===currentId);
+    if(!post) return;
+    try{
+      await remoteDeletePost(post);
+      closeLightbox();
+    }catch(err){
+      alert('삭제에 실패했습니다.\n' + err.message);
+    }
   });
 
   /* ---------------- Init ---------------- */
-  (async function init(){
-    posts = await dbGetAll();
-    posts.sort((a,b)=>b.createdAt-a.createdAt);
-    render();
-  })();
-
-})();
+  render();
+  renderSidebar();
+  initFirebase();
 </script>
 </body>
 </html>
