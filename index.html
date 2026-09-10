@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" as="style" crossorigin
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
     --accent:#5b6cff;
@@ -62,6 +63,7 @@
   .year-row{
     display:flex; align-items:center; justify-content:space-between;
     padding:7px 8px; border-radius:8px; font-weight:700; font-size:13.5px; color:#333;
+    cursor:grab;
   }
   .year-row .year-actions{ display:flex; gap:2px; }
   .mini-btn{
@@ -74,6 +76,7 @@
   .lecture-header-row{
     display:flex; align-items:center; justify-content:space-between;
     padding:6px 8px 6px 6px; font-weight:600; font-size:12.5px; color:#444;
+    cursor:grab;
   }
   .lecture-title{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
   .session-list{ margin-left:10px; margin-bottom:4px; }
@@ -87,6 +90,11 @@
   .session-row .mini-btn{ color:inherit; opacity:.65; }
   .session-row.active .mini-btn:hover{ background:rgba(255,255,255,.25); color:#fff; }
   .session-row .mini-btn:hover{ opacity:1; }
+  .year-row.dragging, .lecture-header-row.dragging, .session-row.dragging, .card.dragging{ opacity:.4; }
+  .year-row.drag-over, .lecture-header-row.drag-over, .session-row.drag-over{
+    outline:2px dashed var(--accent); outline-offset:1px;
+  }
+  .card.drag-over{ outline:3px dashed var(--accent); outline-offset:2px; }
   .session-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
   .row-actions{ display:flex; gap:2px; flex-shrink:0; }
   .year-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -112,7 +120,7 @@
   }
   .brand{ display:flex; align-items:center; gap:6px; min-width:0; }
   .brand h1{ font-size:21px; margin:0; font-weight:800; letter-spacing:-.3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .header-actions{ display:flex; align-items:center; gap:14px; flex-shrink:0; }
+  .header-actions{ display:flex; align-items:center; gap:14px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; }
   .link-btn{
     background:none; border:none; color:var(--muted); font-size:12.5px; cursor:pointer;
     text-decoration:underline; padding:4px;
@@ -151,7 +159,9 @@
     border-top:1px dashed #eceef5; margin-top:4px;
   }
   .card-answer.is-empty:before{ content:attr(data-placeholder); color:var(--muted); }
-  .card-footer{ display:flex; align-items:center; justify-content:flex-end; padding:8px 10px 12px; }
+  .card-footer{ display:flex; align-items:center; justify-content:space-between; padding:8px 10px 12px; }
+  .drag-handle{ cursor:grab; color:var(--muted); font-size:16px; padding:4px 8px; user-select:none; }
+  .drag-handle:active{ cursor:grabbing; }
   .icon-btn{
     border:none; background:none; cursor:pointer; font-size:15px; padding:6px 8px;
     border-radius:8px; color:var(--muted); line-height:1;
@@ -276,6 +286,7 @@
       </div>
       <div class="header-actions">
         <span class="count-badge" id="countBadge">0개의 게시물</span>
+        <button class="link-btn" id="downloadAllBtn" disabled>전체 이미지 다운로드</button>
         <button class="link-btn" id="clearAllBtn" disabled>이 수업 게시물 전체 삭제</button>
       </div>
     </header>
@@ -435,15 +446,19 @@
   /* ---------------- Remote data layer ---------------- */
   async function addYear(name){
     ensureReady();
-    await addDoc(collection(db,'years'), { name, createdAt: Date.now() });
+    await addDoc(collection(db,'years'), { name, createdAt: Date.now(), order: Date.now() });
   }
   async function addLecture(yearId, name){
     ensureReady();
-    await addDoc(collection(db,'lectures'), { yearId, name, createdAt: Date.now() });
+    await addDoc(collection(db,'lectures'), { yearId, name, createdAt: Date.now(), order: Date.now() });
   }
   async function addSession(lectureId, name){
     ensureReady();
-    await addDoc(collection(db,'sessions'), { lectureId, name, createdAt: Date.now() });
+    await addDoc(collection(db,'sessions'), { lectureId, name, createdAt: Date.now(), order: Date.now() });
+  }
+  async function updateOrder(collectionName, id, order){
+    ensureReady();
+    await updateDoc(doc(db, collectionName, id), { order });
   }
   async function renameYear(yearId, name){
     ensureReady();
@@ -506,7 +521,7 @@
     await uploadString(sRef, imageDataURL, 'data_url');
     const imageURL = await getDownloadURL(sRef);
     await addDoc(collection(db,'posts'), {
-      sessionId: selectedSessionId, title, answer, image: imageURL, storagePath, createdAt: Date.now()
+      sessionId: selectedSessionId, title, answer, image: imageURL, storagePath, createdAt: Date.now(), order: Date.now()
     });
   }
   async function remoteUpdatePostFields(id, changes){
@@ -579,7 +594,7 @@
     const q = query(collection(db,'posts'), where('sessionId','==', sessionId));
     unsubscribePosts = onSnapshot(q, snap=>{
       posts = snap.docs.map(d=>({id:d.id, ...d.data()}));
-      posts.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+      posts.sort((a,b)=>(a.order ?? a.createdAt ?? 0)-(b.order ?? b.createdAt ?? 0));
       render();
     }, err=>{ showSetupBanner('⚠️ 게시물을 불러오지 못했습니다: ' + err.message); });
     updateBoardHeader();
@@ -590,10 +605,12 @@
     const boardTitle = document.getElementById('boardTitle');
     const boardSubtitle = document.getElementById('boardSubtitle');
     const clearAllBtn = document.getElementById('clearAllBtn');
+    const downloadAllBtn = document.getElementById('downloadAllBtn');
     if(!selectedSessionId){
       boardTitle.textContent = '📚 문제풀이 공유 보드';
       boardSubtitle.textContent = '왼쪽에서 수업을 선택하거나 새로 만들어보세요.';
       clearAllBtn.disabled = true;
+      downloadAllBtn.disabled = true;
       return;
     }
     const session = sessions.find(s=>s.id===selectedSessionId);
@@ -605,6 +622,7 @@
       boardSubtitle.textContent = '사진을 올리고, 함께 풀이를 확인해보세요 — 로그인 없이 바로 사용할 수 있어요.';
     }
     clearAllBtn.disabled = posts.length===0;
+    downloadAllBtn.disabled = posts.length===0;
   }
 
   /* ---------------- Sidebar rendering ---------------- */
@@ -614,15 +632,16 @@
       tree.innerHTML = `<div class="empty-tree-hint">아직 연도가 없어요.<br>"+ 연도" 버튼으로 추가해보세요.</div>`;
       return;
     }
-    const sortedYears = [...years].sort((a,b)=> String(a.name).localeCompare(String(b.name), undefined, {numeric:true}));
+    const byOrder = (a,b)=>(a.order ?? a.createdAt ?? 0)-(b.order ?? b.createdAt ?? 0);
+    const sortedYears = [...years].sort(byOrder);
     tree.innerHTML = sortedYears.map(y=>{
-      const yearLectures = lectures.filter(l=>l.yearId===y.id).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+      const yearLectures = lectures.filter(l=>l.yearId===y.id).sort(byOrder);
       const lecturesHTML = yearLectures.length
         ? yearLectures.map(l=>{
-            const lectureSessions = sessions.filter(s=>s.lectureId===l.id).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+            const lectureSessions = sessions.filter(s=>s.lectureId===l.id).sort(byOrder);
             const sessionsHTML = lectureSessions.length
               ? lectureSessions.map(s=>`
-                  <div class="session-row ${s.id===selectedSessionId?'active':''}" data-session-id="${s.id}">
+                  <div class="session-row ${s.id===selectedSessionId?'active':''}" data-session-id="${s.id}" draggable="true" title="드래그해서 순서 변경">
                     <span class="session-name">${escapeHTML(s.name)}</span>
                     <span class="row-actions">
                       <button class="mini-btn rename-session-btn" data-session-id="${s.id}" title="수업 이름 수정">✏️</button>
@@ -631,7 +650,7 @@
                   </div>`).join('')
               : `<div class="empty-tree-hint">수업 없음</div>`;
             return `<div class="lecture-block" data-lecture-id="${l.id}">
-              <div class="lecture-header-row">
+              <div class="lecture-header-row" draggable="true" title="드래그해서 순서 변경">
                 <span class="lecture-title">${escapeHTML(l.name)}</span>
                 <span class="row-actions">
                   <button class="mini-btn rename-lecture-btn" data-lecture-id="${l.id}" title="강의 이름 수정">✏️</button>
@@ -644,7 +663,7 @@
           }).join('')
         : `<div class="empty-tree-hint">강의 없음</div>`;
       return `<div class="year-block" data-year-id="${y.id}">
-        <div class="year-row">
+        <div class="year-row" draggable="true" title="드래그해서 순서 변경">
           <span class="year-name">${escapeHTML(y.name)}</span>
           <span class="year-actions">
             <button class="mini-btn rename-year-btn" data-year-id="${y.id}" title="연도 이름 수정">✏️</button>
@@ -754,6 +773,108 @@
     }
   });
 
+  /* ---------------- Sidebar drag-to-reorder (years / lectures / sessions) ---------------- */
+  const yearTreeEl = document.getElementById('yearTree');
+  let treeDragType = null; // 'year' | 'lecture' | 'session'
+  let treeDragId = null;
+
+  function findTreeRow(target, type){
+    if(type==='session') return target.closest('.session-row');
+    if(type==='lecture') return target.closest('.lecture-header-row');
+    if(type==='year') return target.closest('.year-row');
+    return null;
+  }
+
+  yearTreeEl.addEventListener('dragstart', (e)=>{
+    const sessionRow = e.target.closest('.session-row');
+    const lectureHeaderRow = e.target.closest('.lecture-header-row');
+    const yearRow = e.target.closest('.year-row');
+    if(sessionRow){
+      treeDragType = 'session';
+      treeDragId = sessionRow.dataset.sessionId;
+      sessionRow.classList.add('dragging');
+    } else if(lectureHeaderRow){
+      treeDragType = 'lecture';
+      treeDragId = lectureHeaderRow.closest('.lecture-block').dataset.lectureId;
+      lectureHeaderRow.classList.add('dragging');
+    } else if(yearRow){
+      treeDragType = 'year';
+      treeDragId = yearRow.closest('.year-block').dataset.yearId;
+      yearRow.classList.add('dragging');
+    } else {
+      treeDragType = null; treeDragId = null;
+      return;
+    }
+    e.dataTransfer.effectAllowed = 'move';
+    try{ e.dataTransfer.setData('text/plain', treeDragId); }catch(err){}
+  });
+
+  yearTreeEl.addEventListener('dragend', ()=>{
+    yearTreeEl.querySelectorAll('.dragging').forEach(el=>el.classList.remove('dragging'));
+    yearTreeEl.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+    treeDragType = null; treeDragId = null;
+  });
+
+  yearTreeEl.addEventListener('dragover', (e)=>{
+    if(!treeDragType) return;
+    const targetRow = findTreeRow(e.target, treeDragType);
+    if(!targetRow) return;
+    if(treeDragType==='session'){
+      const draggedSession = sessions.find(s=>s.id===treeDragId);
+      const targetLectureId = targetRow.closest('.lecture-block').dataset.lectureId;
+      if(!draggedSession || draggedSession.lectureId !== targetLectureId) return;
+    } else if(treeDragType==='lecture'){
+      const draggedLecture = lectures.find(l=>l.id===treeDragId);
+      const targetYearId = targetRow.closest('.year-block').dataset.yearId;
+      if(!draggedLecture || draggedLecture.yearId !== targetYearId) return;
+    }
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    yearTreeEl.querySelectorAll('.drag-over').forEach(el=>{ if(el!==targetRow) el.classList.remove('drag-over'); });
+    targetRow.classList.add('drag-over');
+  });
+
+  yearTreeEl.addEventListener('drop', async (e)=>{
+    if(!treeDragType) return;
+    const targetRow = findTreeRow(e.target, treeDragType);
+    if(!targetRow) return;
+    e.preventDefault();
+    targetRow.classList.remove('drag-over');
+
+    let targetId, siblings, collectionName;
+    if(treeDragType==='session'){
+      targetId = targetRow.dataset.sessionId;
+      const draggedSession = sessions.find(s=>s.id===treeDragId);
+      const targetLectureId = targetRow.closest('.lecture-block').dataset.lectureId;
+      if(!draggedSession || draggedSession.lectureId !== targetLectureId) return;
+      siblings = sessions.filter(s=>s.lectureId===targetLectureId).sort((a,b)=>(a.order??a.createdAt??0)-(b.order??b.createdAt??0));
+      collectionName = 'sessions';
+    } else if(treeDragType==='lecture'){
+      targetId = targetRow.closest('.lecture-block').dataset.lectureId;
+      const draggedLecture = lectures.find(l=>l.id===treeDragId);
+      const targetYearId = targetRow.closest('.year-block').dataset.yearId;
+      if(!draggedLecture || draggedLecture.yearId !== targetYearId) return;
+      siblings = lectures.filter(l=>l.yearId===targetYearId).sort((a,b)=>(a.order??a.createdAt??0)-(b.order??b.createdAt??0));
+      collectionName = 'lectures';
+    } else {
+      targetId = targetRow.closest('.year-block').dataset.yearId;
+      siblings = [...years].sort((a,b)=>(a.order??a.createdAt??0)-(b.order??b.createdAt??0));
+      collectionName = 'years';
+    }
+    if(targetId === treeDragId) return;
+
+    const fromIndex = siblings.findIndex(x=>x.id===treeDragId);
+    const toIndex = siblings.findIndex(x=>x.id===targetId);
+    if(fromIndex===-1 || toIndex===-1) return;
+    const [moved] = siblings.splice(fromIndex,1);
+    siblings.splice(toIndex,0,moved);
+    siblings.forEach((item,i)=>{ item.order = i; });
+    renderSidebar();
+    try{
+      await Promise.all(siblings.map(item=> updateOrder(collectionName, item.id, item.order).catch(err=>console.error(err))));
+    }catch(err){ /* individual failures already logged */ }
+  });
+
   const sidebar = document.getElementById('sidebar');
   const sidebarBackdrop = document.getElementById('sidebarBackdrop');
   document.getElementById('hamburgerBtn').addEventListener('click', ()=>{
@@ -854,6 +975,7 @@
       <div class="card-img-wrap"><img class="card-img" src="${p.image}" alt="문제 풀이 사진"></div>
       <div class="card-answer ${answerEmpty?'is-empty':''}" contenteditable="true" data-field="answer" data-placeholder="(답변 없음 — 클릭해서 입력)">${escapeHTML(p.answer||'')}</div>
       <div class="card-footer">
+        <span class="drag-handle" draggable="true" title="드래그해서 순서 변경">⠿</span>
         <button class="icon-btn delete-btn" title="삭제">🗑</button>
       </div>
     </div>`;
@@ -862,6 +984,7 @@
   function render(){
     countBadge.textContent = `${posts.length}개의 게시물`;
     document.getElementById('clearAllBtn').disabled = !selectedSessionId || posts.length===0;
+    document.getElementById('downloadAllBtn').disabled = !selectedSessionId || posts.length===0;
     if(!selectedSessionId){
       board.innerHTML = `<div class="board-placeholder"><span>📁</span>왼쪽에서 수업을 선택하거나<br>새로 만들어보세요.</div>`;
       return;
@@ -894,6 +1017,56 @@
   board.addEventListener('input', (e)=>{
     const t = e.target;
     if(t.dataset && t.dataset.field) t.classList.toggle('is-empty', t.innerText.trim()==='');
+  });
+
+  /* ---------------- Post drag-to-reorder ---------------- */
+  let cardDragId = null;
+
+  board.addEventListener('dragstart', (e)=>{
+    const handle = e.target.closest('.drag-handle');
+    const card = e.target.closest('.card');
+    if(!handle || !card){ cardDragId = null; return; }
+    cardDragId = card.dataset.id;
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    try{ e.dataTransfer.setData('text/plain', cardDragId); }catch(err){}
+  });
+
+  board.addEventListener('dragend', ()=>{
+    board.querySelectorAll('.dragging').forEach(el=>el.classList.remove('dragging'));
+    board.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+    cardDragId = null;
+  });
+
+  board.addEventListener('dragover', (e)=>{
+    if(!cardDragId) return;
+    const targetCard = e.target.closest('.card');
+    if(!targetCard || targetCard.dataset.id === cardDragId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    board.querySelectorAll('.drag-over').forEach(el=>{ if(el!==targetCard) el.classList.remove('drag-over'); });
+    targetCard.classList.add('drag-over');
+  });
+
+  board.addEventListener('drop', async (e)=>{
+    if(!cardDragId) return;
+    const targetCard = e.target.closest('.card');
+    if(!targetCard) return;
+    e.preventDefault();
+    targetCard.classList.remove('drag-over');
+    const targetId = targetCard.dataset.id;
+    if(targetId === cardDragId) return;
+
+    const fromIndex = posts.findIndex(p=>p.id===cardDragId);
+    const toIndex = posts.findIndex(p=>p.id===targetId);
+    if(fromIndex===-1 || toIndex===-1) return;
+    const [moved] = posts.splice(fromIndex,1);
+    posts.splice(toIndex,0,moved);
+    posts.forEach((p,i)=>{ p.order = i; });
+    render();
+    try{
+      await Promise.all(posts.map(p=> updateOrder('posts', p.id, p.order).catch(err=>console.error(err))));
+    }catch(err){ /* individual failures already logged */ }
   });
 
   async function handleFieldEdit(el){
@@ -1021,6 +1194,89 @@
       await Promise.all(posts.map(p=>remoteDeletePost(p).catch(e=>console.error(e))));
     } finally {
       btn.disabled = posts.length===0;
+    }
+  });
+
+  /* ---------------- Download all images (current session) as ZIP ---------------- */
+  function sanitizeFilename(name){
+    return (name || '').replace(/[\\/:*?"<>|]/g, '_').trim().slice(0, 60);
+  }
+  // Chromium (and other browsers) silently discard non-ASCII characters in the
+  // `download` attribute for blob: URLs, falling back to a generic "download"
+  // filename. Korean lecture/session names would trip this, so the outer ZIP
+  // filename is built from ASCII-only fragments (+ a timestamp for uniqueness).
+  // Per-image filenames *inside* the ZIP are unaffected by this bug and keep
+  // full Korean text via sanitizeFilename above.
+  function asciiSafeFragment(name){
+    return (name || '').replace(/[^\x20-\x7E]/g, '').replace(/[\\/:*?"<>|]/g, '_').trim();
+  }
+  function timestampTag(){
+    const d = new Date();
+    const p = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+  }
+
+  document.getElementById('downloadAllBtn').addEventListener('click', async ()=>{
+    if(!selectedSessionId || posts.length===0) return;
+    const btn = document.getElementById('downloadAllBtn');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+
+    const session = sessions.find(s=>s.id===selectedSessionId);
+    const lecture = session ? lectures.find(l=>l.id===session.lectureId) : null;
+    const year = lecture ? years.find(y=>y.id===lecture.yearId) : null;
+    const asciiParts = [year?.name, lecture?.name, session?.name]
+      .map(asciiSafeFragment).filter(Boolean);
+    const zipName = (asciiParts.length ? asciiParts.join('_').replace(/\s+/g,'_') + '_' : 'problem-board_') + timestampTag();
+
+    try{
+      const zip = new JSZip();
+      let successCount = 0;
+      let failCount = 0;
+
+      for(let i=0; i<posts.length; i++){
+        const p = posts[i];
+        btn.textContent = `다운로드 준비 중... (${i+1}/${posts.length})`;
+        try{
+          const res = await fetch(p.image);
+          if(!res.ok) throw new Error('HTTP ' + res.status);
+          const blob = await res.blob();
+          const baseName = sanitizeFilename(p.title) || `사진${i+1}`;
+          let ext = 'jpg';
+          const typeMatch = /image\/(\w+)/.exec(blob.type || '');
+          if(typeMatch) ext = typeMatch[1] === 'jpeg' ? 'jpg' : typeMatch[1];
+          zip.file(`${String(i+1).padStart(2,'0')}_${baseName}.${ext}`, blob);
+          successCount++;
+        }catch(err){
+          console.error('이미지 다운로드 실패:', p.id, err);
+          failCount++;
+        }
+      }
+
+      if(successCount===0){
+        alert('이미지를 하나도 받아오지 못했습니다.\n\nFirebase Storage 버킷에 CORS 설정이 되어있지 않으면 이 기능이 작동하지 않을 수 있습니다.\n(Google Cloud Console → Storage → 버킷 → 구성(Configuration) 탭에서 CORS를 설정해야 합니다.)');
+        return;
+      }
+
+      btn.textContent = '압축 중...';
+      const content = await zip.generateAsync({type:'blob'});
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${zipName}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 2000);
+
+      if(failCount>0){
+        alert(`${successCount}개 이미지는 다운로드했지만, ${failCount}개는 실패했습니다.\n\nFirebase Storage 버킷의 CORS 설정을 확인해보세요.`);
+      }
+    }catch(err){
+      alert('다운로드 중 오류가 발생했습니다.\n' + err.message);
+    } finally {
+      btn.disabled = posts.length===0;
+      btn.textContent = originalLabel;
     }
   });
 
