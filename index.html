@@ -957,6 +957,13 @@
   function dataURLToImage(dataURL){
     return new Promise((resolve,reject)=>{
       const img = new Image();
+      // Photos loaded here can be a remote Firebase Storage URL (cross-origin)
+      // or a local data: URL. crossOrigin='anonymous' asks the browser to make
+      // a CORS request when it's remote, so the canvas we draw it into isn't
+      // "tainted" and pixel operations (scan effect, brightness/contrast,
+      // drawing, saving edits) keep working — this only succeeds if the
+      // Storage bucket has CORS enabled, but is harmless for data: URLs.
+      img.crossOrigin = 'anonymous';
       img.onload = ()=>resolve(img);
       img.onerror = reject;
       img.src = dataURL;
@@ -1313,13 +1320,40 @@
   let isDrawing=false, lastPt=null;
   let dragging=false, dragStart={x:0,y:0}, dragOrigin={x:0,y:0};
   let bcHistoryPushed=false;
+  // Photos are loaded from a cross-origin Firebase Storage URL. Unless the
+  // Storage bucket has CORS configured to allow this site's origin, the
+  // canvas becomes "tainted" once we draw the image onto it — pixel-level
+  // operations (getImageData/toDataURL, needed for scan effect, brightness/
+  // contrast, drawing, and saving edits) then throw a SecurityError, even
+  // though plain viewing/zooming/panning (which never reads pixel data)
+  // works fine. These helpers make that failure graceful instead of silently
+  // breaking the whole lightbox.
+  let canvasTainted = false;
+  let corsWarnedThisOpen = false;
+  function safeGetImageData(){
+    try{
+      return stageCtx.getImageData(0,0,stageCanvas.width, stageCanvas.height).data.slice();
+    }catch(err){
+      canvasTainted = true;
+      return null;
+    }
+  }
+  function warnCorsIfNeeded(){
+    if(!canvasTainted || corsWarnedThisOpen) return;
+    corsWarnedThisOpen = true;
+    alert('이 사진은 지금 편집(스캔 효과 / 밝기·대비 / 그리기 / 저장) 기능을 쓸 수 없어요.\n\n사진 보기·확대·축소는 정상적으로 되지만, 편집 기능을 쓰려면 Firebase Storage 버킷에 CORS 설정이 필요합니다.');
+  }
 
   function applyTransform(){
     stageCanvas.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
   }
   function pushHistory(){
-    history.push(stageCanvas.toDataURL('image/jpeg',0.92));
-    if(history.length>15) history.shift();
+    try{
+      history.push(stageCanvas.toDataURL('image/jpeg',0.92));
+      if(history.length>15) history.shift();
+    }catch(err){
+      canvasTainted = true;
+    }
   }
   async function drawDataURLToStage(dataURL){
     const img = await dataURLToImage(dataURL);
@@ -1327,7 +1361,7 @@
     stageCanvas.height = img.height;
     stageCtx.clearRect(0,0,stageCanvas.width,stageCanvas.height);
     stageCtx.drawImage(img,0,0);
-    baseImageData = stageCtx.getImageData(0,0,stageCanvas.width, stageCanvas.height).data.slice();
+    baseImageData = safeGetImageData();
     resetSliders();
   }
   function resetSliders(){
@@ -1346,6 +1380,8 @@
     origAtOpen = post.image;
     history = [];
     scale=1; tx=0; ty=0; mode='view';
+    canvasTainted = false;
+    corsWarnedThisOpen = false;
     setModeUI();
     applyTransform();
     await drawDataURLToStage(post.image);
@@ -1416,7 +1452,8 @@
   function endInteraction(){
     if(mode==='draw' && isDrawing){
       isDrawing=false;
-      baseImageData = stageCtx.getImageData(0,0,stageCanvas.width,stageCanvas.height).data.slice();
+      baseImageData = safeGetImageData();
+      warnCorsIfNeeded();
     }
     dragging=false;
     stageCanvas.classList.remove('dragging');
@@ -1450,7 +1487,8 @@
     stageCanvas.height = newCanvas.height;
     stageCtx.clearRect(0,0,stageCanvas.width,stageCanvas.height);
     stageCtx.drawImage(newCanvas,0,0);
-    baseImageData = stageCtx.getImageData(0,0,stageCanvas.width,stageCanvas.height).data.slice();
+    baseImageData = safeGetImageData();
+    warnCorsIfNeeded();
     resetSliders();
   }
   rotateLeftBtn.addEventListener('click', ()=>rotateStage(-1));
@@ -1458,12 +1496,19 @@
 
   scanEffectBtn.addEventListener('click', ()=>{
     pushHistory();
-    applyScannerEffect(stageCtx, stageCanvas);
-    baseImageData = stageCtx.getImageData(0,0,stageCanvas.width,stageCanvas.height).data.slice();
+    try{
+      applyScannerEffect(stageCtx, stageCanvas);
+    }catch(err){
+      canvasTainted = true;
+      warnCorsIfNeeded();
+      return;
+    }
+    baseImageData = safeGetImageData();
     resetSliders();
   });
 
   function onBCInput(){
+    if(!baseImageData){ warnCorsIfNeeded(); return; }
     applyBrightnessContrast(stageCtx, stageCanvas.width, stageCanvas.height, baseImageData, Number(brightnessSlider.value), Number(contrastSlider.value));
   }
   function armBCHistory(){ if(!bcHistoryPushed){ pushHistory(); bcHistoryPushed=true; } }
@@ -1473,7 +1518,8 @@
   contrastSlider.addEventListener('input', onBCInput);
   function bakeBC(){
     if(!bcHistoryPushed) return;
-    baseImageData = stageCtx.getImageData(0,0,stageCanvas.width,stageCanvas.height).data.slice();
+    baseImageData = safeGetImageData();
+    warnCorsIfNeeded();
     brightnessSlider.value=0; contrastSlider.value=100;
     bcHistoryPushed=false;
   }
@@ -1494,7 +1540,14 @@
     if(currentId==null) return;
     const post = posts.find(p=>p.id===currentId);
     if(!post) return;
-    const dataURL = stageCanvas.toDataURL('image/jpeg',0.9);
+    let dataURL;
+    try{
+      dataURL = stageCanvas.toDataURL('image/jpeg',0.9);
+    }catch(err){
+      canvasTainted = true;
+      warnCorsIfNeeded();
+      return;
+    }
     saveEditBtn.disabled = true;
     saveEditBtn.textContent = '저장 중...';
     try{
