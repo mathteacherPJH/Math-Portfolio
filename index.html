@@ -520,12 +520,14 @@
 </div>
 
 <script type="module">
+  let isAdmin = false;
+
   /* ---------------- Access lock (client-side password gate) ----------------
      이건 진짜 로그인/보안이 아니라, 아무나 링크를 열어도 화면이 안 보이게 막는
      "출입문" 정도예요. 페이지 소스나 개발자 도구를 볼 줄 아는 사람은 우회할 수
      있고, Firebase 보안 규칙이 열려 있으면 데이터 자체는 그대로 접근 가능해요.
   ========================================================================= */
-  const SITE_PASSWORD = '2694';
+  const SITE_PASSWORD = 'qkrwlghks';
   const LOCK_STORAGE_KEY = 'boardUnlocked_v1';
   const lockOverlay = document.getElementById('lockOverlay');
   const lockPanel = document.getElementById('lockPanel');
@@ -612,13 +614,10 @@
     getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 
-  /* 이 계정으로 Google 로그인했을 때만 "관리자"가 되어 사진 추가/수정/삭제 등을
-     쓰기 작업을 할 수 있어요. 다른 사람은 로그인 없이도 보기만 가능해요. */
   const ADMIN_EMAIL = 'felicityshout@gmail.com';
 
   let app, db, storage, auth;
   let firebaseReady = false;
-  let isAdmin = false;
 
   function showSetupBanner(html){
     const el = document.getElementById('setupBanner');
@@ -643,7 +642,6 @@
       subscribeYearsAndLectures();
       onAuthStateChanged(auth, async (user)=>{
         if(user && user.email !== ADMIN_EMAIL){
-          // Someone signed in with a Google account that isn't the admin's — kick them back out.
           isAdmin = false;
           try{ await signOut(auth); }catch(e){}
           updateAdminUI();
@@ -665,7 +663,7 @@
     if(!isAdmin) throw new Error('관리자로 로그인해야 수정할 수 있어요. 오른쪽 위 "관리자 로그인" 버튼을 눌러주세요.');
   }
 
-  /* ---------------- Admin login (Google) ---------------- */
+  /* ---------------- Admin UI state ---------------- */
   function updateAdminUI(){
     document.body.classList.toggle('admin-mode', isAdmin);
     const loginBtn = document.getElementById('adminLoginBtn');
