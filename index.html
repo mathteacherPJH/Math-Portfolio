@@ -24,6 +24,37 @@
   }
   *{box-sizing:border-box;}
   html,body{height:100%;}
+
+  .lock-overlay{
+    position:fixed; inset:0; z-index:9999;
+    background:linear-gradient(160deg, var(--bg-top), var(--bg-bottom));
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .lock-overlay.hidden{ display:none; }
+  .lock-panel{
+    background:var(--card-bg); border-radius:22px; box-shadow:var(--shadow-lg);
+    padding:40px 32px 32px; width:100%; max-width:340px; text-align:center;
+  }
+  .lock-icon{ font-size:38px; margin-bottom:10px; }
+  .lock-panel h2{ margin:0 0 6px; font-size:19px; font-weight:800; }
+  .lock-panel p.lock-sub{ margin:0 0 22px; font-size:13px; color:var(--muted); }
+  .lock-input{
+    width:100%; padding:13px 14px; border-radius:12px; border:1.5px solid #e3e5ef;
+    font-size:20px; letter-spacing:6px; text-align:center; outline:none; margin-bottom:14px;
+    font-family:inherit;
+  }
+  .lock-input:focus{ border-color:var(--accent); }
+  .lock-submit-btn{
+    width:100%; padding:12px; border:none; border-radius:12px; cursor:pointer;
+    background:linear-gradient(135deg,var(--accent),var(--pink)); color:#fff;
+    font-size:15px; font-weight:700;
+  }
+  .lock-submit-btn:hover{ filter:brightness(1.05); }
+  .lock-error{ color:var(--pink); font-size:13px; margin:12px 0 0; font-weight:600; }
+  .lock-error.hidden{ display:none; }
+  @keyframes lockShake{ 10%,90%{transform:translateX(-2px);} 20%,80%{transform:translateX(4px);} 30%,50%,70%{transform:translateX(-8px);} 40%,60%{transform:translateX(8px);} }
+  .lock-panel.shake{ animation:lockShake .5s; }
+  .relock-btn{ font-size:12.5px; }
   body{
     margin:0;
     font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Malgun Gothic',system-ui,sans-serif;
@@ -33,7 +64,8 @@
       radial-gradient(circle at 85% 90%, rgba(255,255,255,.35), transparent 50%),
       linear-gradient(160deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
     background-attachment:fixed;
-    min-height:100%;
+    height:100%;
+    overflow:hidden;
   }
 
   /* ---- setup banner ---- */
@@ -45,12 +77,13 @@
   #setupBanner code{ background:rgba(255,255,255,.15); padding:1px 6px; border-radius:5px; }
 
   /* ---- layout ---- */
-  .app-layout{ display:flex; align-items:flex-start; min-height:100vh; }
+  .app-layout{ display:flex; align-items:stretch; height:100vh; }
   .sidebar{
-    width:260px; flex-shrink:0; min-height:100vh;
+    width:260px; flex-shrink:0; height:100%;
     background:rgba(255,255,255,.6); backdrop-filter:blur(8px);
     border-right:1px solid rgba(255,255,255,.7);
     padding:20px 14px 40px;
+    overflow-y:auto;
   }
   .sidebar-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
   .sidebar-header h2{ font-size:14px; margin:0; color:#555; }
@@ -112,11 +145,12 @@
     .hamburger-btn{ display:inline-block; }
   }
 
-  .main-area{ flex:1; min-width:0; padding-bottom:100px; }
+  .main-area{ flex:1; min-width:0; height:100%; display:flex; flex-direction:column; overflow:hidden; }
 
   header{
     display:flex; align-items:center; justify-content:space-between;
-    padding:22px 28px 10px; max-width:1400px; margin:0 auto;
+    padding:22px 28px 10px; max-width:1400px; margin:0 auto; width:100%;
+    flex-shrink:0;
   }
   .brand{ display:flex; align-items:center; gap:6px; min-width:0; }
   .brand h1{ font-size:21px; margin:0; font-weight:800; letter-spacing:-.3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -127,23 +161,55 @@
   }
   .link-btn:hover{ color:var(--pink); }
   .link-btn:disabled{ opacity:.4; cursor:not-allowed; text-decoration:none; }
+  .admin-status{
+    font-size:12px; font-weight:700; color:#2f9e5c; background:rgba(47,158,92,.12);
+    padding:4px 10px; border-radius:999px; white-space:nowrap;
+  }
+
+  /* ---- Viewer mode: hide every write-capable control unless signed in as admin ---- */
+  body:not(.admin-mode) .add-btn-sm,
+  body:not(.admin-mode) .mini-btn,
+  body:not(.admin-mode) .drag-handle,
+  body:not(.admin-mode) .list-drag-handle,
+  body:not(.admin-mode) .list-delete-btn,
+  body:not(.admin-mode) .list-add-btn,
+  body:not(.admin-mode) .add-list-column,
+  body:not(.admin-mode) .delete-btn,
+  body:not(.admin-mode) .fab,
+  body:not(.admin-mode) #clearAllBtn,
+  body:not(.admin-mode) #rotateLeftBtn,
+  body:not(.admin-mode) #rotateRightBtn,
+  body:not(.admin-mode) #scanEffectBtn,
+  body:not(.admin-mode) #drawModeBtn,
+  body:not(.admin-mode) #eraserModeBtn,
+  body:not(.admin-mode) #undoBtn,
+  body:not(.admin-mode) #resetOrigBtn,
+  body:not(.admin-mode) #penOptions,
+  body:not(.admin-mode) #lbEditRow,
+  body:not(.admin-mode) .lb-sep{
+    display:none !important;
+  }
   .count-badge{
     font-size:12.5px; color:var(--accent-dark); background:rgba(91,108,255,.12);
     padding:5px 12px; border-radius:999px; font-weight:600; white-space:nowrap;
   }
 
-  #boardSubtitle{ max-width:1400px; margin:-6px auto 0; padding:0 28px 4px; font-size:13px; color:var(--muted); }
+  #boardSubtitle{
+    max-width:1400px; margin:-6px auto 0; padding:0 28px 4px; font-size:13px; color:var(--muted);
+    width:100%; flex-shrink:0;
+  }
 
   .board{
-    margin:10px 0 0; padding:10px 24px 24px;
-    display:flex; flex-direction:row; align-items:flex-start; gap:18px;
+    margin:10px 0 0; padding:10px 24px 20px;
+    display:flex; flex-direction:row; align-items:stretch; gap:18px;
     overflow-x:auto; overflow-y:hidden;
+    flex:1; min-height:0;
   }
-  @media (max-width:520px){ .board{ padding:10px 12px 24px; gap:12px; } }
+  @media (max-width:520px){ .board{ padding:10px 12px 20px; gap:12px; } }
 
   .list-column{
     flex:0 0 300px; width:300px; background:rgba(20,22,40,.035); border-radius:18px;
-    display:flex; flex-direction:column; max-height:calc(100vh - 200px); min-height:120px;
+    display:flex; flex-direction:column; height:100%; min-height:120px;
     transition:outline .12s ease;
   }
   @media (max-width:520px){ .list-column{ flex:0 0 82vw; width:82vw; } }
@@ -319,6 +385,17 @@
 </head>
 <body>
 
+<div class="lock-overlay" id="lockOverlay">
+  <div class="lock-panel" id="lockPanel">
+    <div class="lock-icon">🔒</div>
+    <h2>비밀번호를 입력하세요</h2>
+    <p class="lock-sub">이 보드는 비밀번호로 보호되어 있어요.</p>
+    <input type="password" id="lockPasswordInput" class="lock-input" inputmode="numeric" autocomplete="off" maxlength="20" placeholder="••••">
+    <button class="lock-submit-btn" id="lockSubmitBtn">입장하기</button>
+    <p class="lock-error hidden" id="lockError">비밀번호가 틀렸습니다.</p>
+  </div>
+</div>
+
 <div id="setupBanner" class="hidden"></div>
 
 <div class="app-layout">
@@ -341,6 +418,10 @@
         <span class="count-badge" id="countBadge">0개의 게시물</span>
         <button class="link-btn" id="downloadAllBtn" disabled>전체 이미지 다운로드</button>
         <button class="link-btn" id="clearAllBtn" disabled>이 수업 게시물 전체 삭제</button>
+        <span class="admin-status hidden" id="adminStatusLabel">🔓 관리자 모드</span>
+        <button class="link-btn" id="adminLoginBtn" title="Google 계정으로 로그인하면 사진 추가/수정/삭제를 할 수 있어요">🔑 관리자 로그인</button>
+        <button class="link-btn hidden" id="adminLogoutBtn">로그아웃</button>
+        <button class="link-btn relock-btn" id="relockBtn" title="이 브라우저에서 로그아웃(다시 잠그기)">🔒 잠그기</button>
       </div>
     </header>
     <p id="boardSubtitle">왼쪽에서 수업을 선택하거나 새로 만들어보세요.</p>
@@ -421,7 +502,7 @@
           <input type="range" id="penWidthSlider" min="2" max="20" value="5">
         </div>
       </div>
-      <div class="lb-row">
+      <div class="lb-row" id="lbEditRow">
         <div class="slider-group">
           밝기
           <input type="range" id="brightnessSlider" min="-100" max="100" value="0">
@@ -439,6 +520,71 @@
 </div>
 
 <script type="module">
+  /* ---------------- Access lock (client-side password gate) ----------------
+     이건 진짜 로그인/보안이 아니라, 아무나 링크를 열어도 화면이 안 보이게 막는
+     "출입문" 정도예요. 페이지 소스나 개발자 도구를 볼 줄 아는 사람은 우회할 수
+     있고, Firebase 보안 규칙이 열려 있으면 데이터 자체는 그대로 접근 가능해요.
+  ========================================================================= */
+  const SITE_PASSWORD = '2694';
+  const LOCK_STORAGE_KEY = 'boardUnlocked_v1';
+  const lockOverlay = document.getElementById('lockOverlay');
+  const lockPanel = document.getElementById('lockPanel');
+  const lockPasswordInput = document.getElementById('lockPasswordInput');
+  const lockSubmitBtn = document.getElementById('lockSubmitBtn');
+  const lockError = document.getElementById('lockError');
+
+  function isUnlocked(){
+    try{ return localStorage.getItem(LOCK_STORAGE_KEY) === 'yes'; }catch(e){ return false; }
+  }
+  function unlock(){
+    try{ localStorage.setItem(LOCK_STORAGE_KEY, 'yes'); }catch(e){}
+    lockOverlay.classList.add('hidden');
+  }
+  function relock(){
+    try{ localStorage.removeItem(LOCK_STORAGE_KEY); }catch(e){}
+    lockOverlay.classList.remove('hidden');
+    lockPasswordInput.value = '';
+    lockError.classList.add('hidden');
+    setTimeout(()=>lockPasswordInput.focus(), 50);
+  }
+  function attemptUnlock(){
+    const value = lockPasswordInput.value.trim();
+    if(value && value === SITE_PASSWORD){
+      lockError.classList.add('hidden');
+      unlock();
+    } else {
+      lockError.classList.remove('hidden');
+      lockPanel.classList.remove('shake');
+      void lockPanel.offsetWidth;
+      lockPanel.classList.add('shake');
+      lockPasswordInput.value = '';
+      lockPasswordInput.focus();
+    }
+  }
+  if(isUnlocked()){
+    lockOverlay.classList.add('hidden');
+  } else {
+    setTimeout(()=>lockPasswordInput.focus(), 100);
+  }
+  lockSubmitBtn.addEventListener('click', attemptUnlock);
+  lockPasswordInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') attemptUnlock(); });
+  document.getElementById('relockBtn').addEventListener('click', relock);
+
+  document.getElementById('adminLoginBtn').addEventListener('click', async ()=>{
+    if(!auth){ alert('Firebase 설정이 완료되지 않았습니다.'); return; }
+    try{
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    }catch(err){
+      if(err && (err.code==='auth/popup-closed-by-user' || err.code==='auth/cancelled-popup-request')) return;
+      alert('로그인에 실패했습니다.\n' + (err && err.message ? err.message : err));
+    }
+  });
+  document.getElementById('adminLogoutBtn').addEventListener('click', async ()=>{
+    if(!auth) return;
+    try{ await signOut(auth); }catch(err){}
+  });
+
   /* =========================================================================
      Firebase 설정
      ------------------------------------------------------------------------
@@ -462,9 +608,17 @@
   import {
     getStorage, ref, uploadString, getDownloadURL, deleteObject
   } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-storage.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 
-  let app, db, storage;
+  /* 이 계정으로 Google 로그인했을 때만 "관리자"가 되어 사진 추가/수정/삭제 등을
+     쓰기 작업을 할 수 있어요. 다른 사람은 로그인 없이도 보기만 가능해요. */
+  const ADMIN_EMAIL = 'felicityshout@gmail.com';
+
+  let app, db, storage, auth;
   let firebaseReady = false;
+  let isAdmin = false;
 
   function showSetupBanner(html){
     const el = document.getElementById('setupBanner');
@@ -484,8 +638,23 @@
       app = initializeApp(firebaseConfig);
       db = getFirestore(app);
       storage = getStorage(app);
+      auth = getAuth(app);
       firebaseReady = true;
       subscribeYearsAndLectures();
+      onAuthStateChanged(auth, async (user)=>{
+        if(user && user.email !== ADMIN_EMAIL){
+          // Someone signed in with a Google account that isn't the admin's — kick them back out.
+          isAdmin = false;
+          try{ await signOut(auth); }catch(e){}
+          updateAdminUI();
+          alert('관리자 계정(' + ADMIN_EMAIL + ')으로만 로그인할 수 있어요.');
+          return;
+        }
+        isAdmin = !!user;
+        updateAdminUI();
+        render();
+        renderSidebar();
+      });
     }catch(err){
       showSetupBanner('⚠️ Firebase 초기화에 실패했습니다: ' + err.message);
     }
@@ -493,6 +662,19 @@
 
   function ensureReady(){
     if(!firebaseReady) throw new Error('Firebase 설정이 완료되지 않았습니다. 안내를 참고해 설정을 마쳐주세요.');
+    if(!isAdmin) throw new Error('관리자로 로그인해야 수정할 수 있어요. 오른쪽 위 "관리자 로그인" 버튼을 눌러주세요.');
+  }
+
+  /* ---------------- Admin login (Google) ---------------- */
+  function updateAdminUI(){
+    document.body.classList.toggle('admin-mode', isAdmin);
+    const loginBtn = document.getElementById('adminLoginBtn');
+    const logoutBtn = document.getElementById('adminLogoutBtn');
+    const statusLabel = document.getElementById('adminStatusLabel');
+    if(!loginBtn || !logoutBtn || !statusLabel) return;
+    loginBtn.classList.toggle('hidden', isAdmin);
+    logoutBtn.classList.toggle('hidden', !isAdmin);
+    statusLabel.classList.toggle('hidden', !isAdmin);
   }
 
   /* ---------------- id helper (no crypto.randomUUID dependency) ---------------- */
@@ -1072,10 +1254,11 @@
   function cardHTML(p){
     const titleEmpty = !p.title;
     const answerEmpty = !p.answer;
+    const editable = isAdmin ? 'true' : 'false';
     return `<div class="card" data-id="${p.id}">
-      <div class="card-title ${titleEmpty?'is-empty':''}" contenteditable="true" data-field="title" data-placeholder="(제목 없음)">${escapeHTML(p.title||'')}</div>
+      <div class="card-title ${titleEmpty?'is-empty':''}" contenteditable="${editable}" data-field="title" data-placeholder="(제목 없음)">${escapeHTML(p.title||'')}</div>
       <div class="card-img-wrap"><img class="card-img" src="${p.image}" alt="문제 풀이 사진"></div>
-      <div class="card-answer ${answerEmpty?'is-empty':''}" contenteditable="true" data-field="answer" data-placeholder="(답변 없음 — 클릭해서 입력)">${escapeHTML(p.answer||'')}</div>
+      <div class="card-answer ${answerEmpty?'is-empty':''}" contenteditable="${editable}" data-field="answer" data-placeholder="(답변 없음 — 클릭해서 입력)">${escapeHTML(p.answer||'')}</div>
       <div class="card-footer">
         <span class="drag-handle" draggable="true" title="드래그해서 순서 변경">⠿</span>
         <button class="icon-btn delete-btn" title="삭제">🗑</button>
@@ -1089,7 +1272,7 @@
       : `<div class="list-empty-hint">사진을 여기로 끌어다 놓거나<br>아래 버튼으로 추가하세요</div>`;
     const headerExtra = col.isUnassigned
       ? `<div class="list-title unassigned-title">${escapeHTML(col.name)}</div>`
-      : `<div class="list-title" contenteditable="true" data-list-id="${col.id}">${escapeHTML(col.name)}</div>
+      : `<div class="list-title" contenteditable="${isAdmin ? 'true' : 'false'}" data-list-id="${col.id}">${escapeHTML(col.name)}</div>
          <span class="list-drag-handle" draggable="true" title="드래그해서 목록 순서 변경">⠿</span>`;
     const deleteBtn = col.isUnassigned ? '' : `<button class="icon-btn list-delete-btn" data-list-id="${col.id}" title="목록 삭제">🗑</button>`;
     return `<div class="list-column" data-list-id="${col.id}">
