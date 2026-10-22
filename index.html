@@ -165,6 +165,23 @@
     font-size:12px; font-weight:700; color:#2f9e5c; background:rgba(47,158,92,.12);
     padding:4px 10px; border-radius:999px; white-space:nowrap;
   }
+  /* ---- 상단 도구 탭: 새 창으로 여는 스캔 효과 변환기 ---- */
+  .tool-tab-btn{
+    background:linear-gradient(135deg, var(--accent), var(--pink)); color:#fff; border:none;
+    border-radius:999px; padding:6px 14px; font-size:12.5px; font-weight:700; cursor:pointer;
+    font-family:inherit; white-space:nowrap; box-shadow:0 4px 12px rgba(91,108,255,.25);
+  }
+  .tool-tab-btn:hover{ filter:brightness(1.07); }
+  .tool-tab-btn:focus-visible{ outline:2px solid var(--accent-dark); outline-offset:2px; }
+  /* ---- 관리자 전용: 입장 비밀번호 켜기/끄기 ---- */
+  .lock-toggle-btn{
+    border:1.5px solid transparent; border-radius:999px; padding:5px 12px; font-size:12px; font-weight:700;
+    cursor:pointer; font-family:inherit; white-space:nowrap;
+  }
+  .lock-toggle-btn.on{ background:rgba(255,107,139,.12); color:#d6456a; border-color:rgba(255,107,139,.35); }
+  .lock-toggle-btn.off{ background:rgba(47,158,92,.12); color:#2f9e5c; border-color:rgba(47,158,92,.35); }
+  .lock-toggle-btn:hover{ filter:brightness(.97); }
+  .lock-toggle-btn:disabled{ opacity:.5; cursor:wait; }
 
   /* ---- Viewer mode: hide every write-capable control unless signed in as admin ---- */
   body:not(.admin-mode) .add-btn-sm,
@@ -177,6 +194,7 @@
   body:not(.admin-mode) .delete-btn,
   body:not(.admin-mode) .fab,
   body:not(.admin-mode) #clearAllBtn,
+  body:not(.admin-mode) #lockToggleBtn,
   body:not(.admin-mode) #rotateLeftBtn,
   body:not(.admin-mode) #rotateRightBtn,
   body:not(.admin-mode) #scanEffectBtn,
@@ -415,10 +433,12 @@
         <h1 id="boardTitle">📚 문제풀이 공유 보드</h1>
       </div>
       <div class="header-actions">
+        <button class="tool-tab-btn" id="openScanToolBtn" title="스캔 효과 변환기를 새 창에서 엽니다">🖨 스캔 효과 변환기 ↗</button>
         <span class="count-badge" id="countBadge">0개의 게시물</span>
         <button class="link-btn" id="downloadAllBtn" disabled>전체 이미지 다운로드</button>
         <button class="link-btn" id="clearAllBtn" disabled>이 수업 게시물 전체 삭제</button>
         <span class="admin-status hidden" id="adminStatusLabel">🔓 관리자 모드</span>
+        <button class="lock-toggle-btn on" id="lockToggleBtn" title="입장 비밀번호를 켜거나 끕니다">🔒 입장 비밀번호: 켜짐</button>
         <button class="link-btn" id="adminLoginBtn" title="Google 계정으로 로그인하면 사진 추가/수정/삭제를 할 수 있어요">🔑 관리자 로그인</button>
         <button class="link-btn hidden" id="adminLogoutBtn">로그아웃</button>
         <button class="link-btn relock-btn" id="relockBtn" title="이 브라우저에서 로그아웃(다시 잠그기)">🔒 잠그기</button>
@@ -519,6 +539,532 @@
   </div>
 </div>
 
+<!-- 스캔 효과 변환기: 상단 "스캔 효과 변환기" 버튼을 누르면 이 내용으로 새 창이 열립니다 -->
+<template id="scanToolHead">
+<title>스캔 효과 변환기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&family=Nanum+Pen+Script&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+
+/* Layout: 스캐너 조작판(왼쪽 패널) + 유리판(미리보기) 2단, 좁으면 위아래로 */
+:root{
+  --bg:#eef0f2; --panel:#ffffff; --fg:#1d2329; --muted:#5f6a75; --line:#d8dde2;
+  --glass:#dfe3e7; --accent:#2f5d8a; --accent-soft:#e3ecf5; --on-accent:#ffffff;
+  --sans:"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#15191d; --panel:#1d2227; --fg:#e6eaee; --muted:#9aa5b0; --line:#2f363d;
+  --glass:#0f1215; --accent:#7fb0e0; --accent-soft:#22313f; --on-accent:#0f1720; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#15191d; --panel:#1d2227; --fg:#e6eaee; --muted:#9aa5b0; --line:#2f363d;
+  --glass:#0f1215; --accent:#7fb0e0; --accent-soft:#22313f; --on-accent:#0f1720; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.5}
+.wrap{max-width:1280px;margin:0 auto;padding-block:20px 32px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;margin-bottom:16px}
+h1{font-size:20px;font-weight:700;margin:0;letter-spacing:-.01em}
+header p{margin:0;color:var(--muted)}
+.grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+aside{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:18px}
+.sec{display:flex;flex-direction:column;gap:10px}
+.lab{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:13px;border:1px solid var(--line);background:transparent;color:var(--fg);padding:5px 10px;border-radius:999px;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:inherit;font-size:13px;border:0;background:transparent;color:var(--fg);padding:7px 4px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.row{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center}
+.row label{font-size:13px}
+.row output{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.row input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--accent)}
+.row.off{opacity:.4}
+.check{display:flex;gap:8px;align-items:center;font-size:13px}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+button:focus-visible,input:focus-visible,label.btn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+main{display:flex;flex-direction:column;gap:12px;min-width:0}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{font:inherit;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:7px 12px;border-radius:8px;cursor:pointer;user-select:none}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn input{position:absolute;width:1px;height:1px;opacity:0}
+.spacer{flex:1}
+.stage{position:relative;background:var(--glass);border:1px solid var(--line);border-radius:10px;min-height:420px;display:flex;align-items:center;justify-content:center;padding:18px;overflow:hidden}
+.stage img{max-width:100%;max-height:72vh;display:block;box-shadow:0 1px 3px rgba(0,0,0,.18),0 8px 24px rgba(0,0,0,.12)}
+.stage.drag{outline:2px dashed var(--accent);outline-offset:-8px}
+.badge{position:absolute;left:12px;top:12px;font-size:12px;background:var(--panel);color:var(--muted);border:1px solid var(--line);padding:2px 8px;border-radius:6px}
+.meta{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.thumbs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.thumb{position:relative;flex:0 0 auto;width:76px;height:76px;border:2px solid transparent;border-radius:8px;overflow:hidden;cursor:pointer;background:var(--glass);padding:0}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb[aria-current="true"]{border-color:var(--accent)}
+.thumb .x{position:absolute;right:2px;top:2px;width:20px;height:20px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:12px;line-height:20px;cursor:pointer;padding:0}
+.note{font-size:12px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:13px}
+@media (prefers-reduced-motion:no-preference){.chip,.btn,.seg button{transition:background .15s,border-color .15s}}
+</style>
+</template>
+<template id="scanToolBody">
+
+<div class="wrap">
+  <header>
+    <h1>스캔 효과 변환기</h1>
+    <p>휴대폰으로 찍은 사진을 스캐너로 읽은 것처럼 바꿉니다. 사진은 이 브라우저 안에서만 처리돼요.</p>
+  </header>
+  <div class="grid">
+    <aside>
+      <div class="sec">
+        <span class="lab">프리셋</span>
+        <div class="chips" id="presets"></div>
+      </div>
+      <div class="sec">
+        <span class="lab">색상</span>
+        <div class="seg" id="mode">
+          <button type="button" data-v="color">컬러</button>
+          <button type="button" data-v="gray">흑백</button>
+          <button type="button" data-v="bw">복사기</button>
+        </div>
+      </div>
+      <div class="sec" id="sliders-main"><span class="lab">보정</span></div>
+      <div class="sec" id="sliders-fx"><span class="lab">스캔 질감</span></div>
+      <div class="sec">
+        <span class="lab">용지</span>
+        <label class="check"><input type="checkbox" id="a4"> A4 용지 위에 놓기 (210 × 297 mm)</label>
+      </div>
+      <div class="sec">
+        <span class="lab">저장 형식</span>
+        <div class="seg" id="fmt">
+          <button type="button" data-v="jpg">JPG</button>
+          <button type="button" data-v="png">PNG</button>
+          <button type="button" data-v="webp">WEBP</button>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="toolbar">
+        <label class="btn primary" for="file">사진 추가
+          <input type="file" id="file" multiple accept="image/*,.jpg,.jpeg,.jfif,.png,.apng,.webp,.gif,.bmp,.avif,.svg,.ico,.heic,.heif,.tif,.tiff">
+        </label>
+        <button class="btn" type="button" id="compare">누르고 있으면 원본</button>
+        <span class="spacer"></span>
+        <button class="btn" type="button" id="saveOne">이 사진 저장</button>
+        <button class="btn" type="button" id="saveZip">전체 ZIP으로 저장</button>
+        <button class="btn" type="button" id="savePdf">전체 PDF로 저장</button>
+      </div>
+      <div class="stage" id="stage">
+        <span class="badge" id="badge" hidden>예시 사진</span>
+        <img id="view" alt="스캔 효과가 적용된 미리보기">
+      </div>
+      <div class="toolbar">
+        <span class="meta" id="meta"></span>
+        <span class="meta" id="progress" hidden></span>
+        <span class="spacer"></span>
+        <span class="note" id="saveNote" hidden>이 화면에서는 저장 버튼을 쓸 수 없어요. 미리보기를 우클릭해서 이미지를 저장하세요.</span>
+      </div>
+      <div class="thumbs" id="thumbs"></div>
+      <p class="note">여러 장을 한 번에 고르거나 이 화면에 끌어다 놓으세요. 붙여넣기(Ctrl+V)도 됩니다. 설정은 모든 사진에 똑같이 적용돼요.<br>
+        열 수 있는 형식: JPG · JPEG · JFIF · PNG · WEBP · GIF · BMP · AVIF · SVG · ICO · HEIC · HEIF · TIFF(여러 쪽 포함). HEIC와 TIFF는 처음 열 때 변환 도구를 인터넷에서 불러옵니다.</p>
+    </main>
+  </div>
+</div>
+
+<script>
+const SLIDERS = [
+  {k:'flatten', g:'main', label:'그림자·조명 얼룩 제거', min:0, max:100, step:1, unit:'%'},
+  {k:'white',   g:'main', label:'배경 하얗게', min:0, max:100, step:1},
+  {k:'ink',     g:'main', label:'글씨 진하게', min:0, max:100, step:1},
+  {k:'thr',     g:'main', label:'흑백 경계', min:80, max:240, step:1, only:'bw'},
+  {k:'tilt',    g:'fx', label:'기울기', min:-3, max:3, step:0.1, unit:'°'},
+  {k:'noise',   g:'fx', label:'노이즈', min:0, max:60, step:1},
+  {k:'blur',    g:'fx', label:'흐림', min:0, max:20, step:1},
+  {k:'age',     g:'fx', label:'종이 누렇게', min:0, max:100, step:1},
+  {k:'shadow',  g:'fx', label:'가장자리 그림자', min:0, max:100, step:1},
+  {k:'dust',    g:'fx', label:'먼지', min:0, max:30, step:1},
+  {k:'quality', g:'fx', label:'압축 품질 (JPG·WEBP)', min:35, max:95, step:1},
+];
+const PRESETS = {
+  '깔끔한 스캔': {mode:'color', flatten:100, white:30, ink:12, thr:180, tilt:0.4, noise:5, blur:2, age:0, shadow:0, dust:0, quality:90, a4:false},
+  '흑백 문서':   {mode:'gray', flatten:100, white:38, ink:22, thr:180, tilt:0.6, noise:10, blur:3, age:0, shadow:18, dust:3, quality:82, a4:false},
+  '복사기':      {mode:'bw', flatten:100, white:40, ink:30, thr:180, tilt:0.9, noise:16, blur:4, age:0, shadow:40, dust:8, quality:72, a4:false},
+  '오래된 스캔': {mode:'gray', flatten:85, white:18, ink:10, thr:180, tilt:1.3, noise:28, blur:6, age:60, shadow:35, dust:14, quality:62, a4:false},
+};
+let S = {...PRESETS['흑백 문서'], fmt:'jpg'};
+const FMT = {jpg:{mime:'image/jpeg', ext:'jpg'}, png:{mime:'image/png', ext:'png'}, webp:{mime:'image/webp', ext:'webp'}};
+let activePreset = '흑백 문서';
+const items = []; let cur = -1; let seedCounter = 1;
+const MAX = 2000;
+
+const $ = id => document.getElementById(id);
+const view = $('view');
+
+/* ---------- 조작판 ---------- */
+const presetBox = $('presets');
+Object.keys(PRESETS).forEach(name => {
+  const b = document.createElement('button'); b.type='button'; b.className='chip'; b.textContent=name;
+  b.onclick = () => { S = {...PRESETS[name], fmt:S.fmt}; activePreset = name; syncUI(); schedule(); };
+  presetBox.appendChild(b);
+});
+SLIDERS.forEach(d => {
+  const row = document.createElement('div'); row.className='row'; row.dataset.k=d.k;
+  row.innerHTML = `<label for="s-${d.k}">${d.label}</label><output id="o-${d.k}"></output>
+    <input type="range" id="s-${d.k}" min="${d.min}" max="${d.max}" step="${d.step}">`;
+  $('sliders-'+d.g).appendChild(row);
+  const inp = row.querySelector('input');
+  inp.addEventListener('input', () => { S[d.k] = +inp.value; activePreset=null; syncUI(); schedule(); });
+});
+document.querySelectorAll('#mode button').forEach(b => b.onclick = () => { S.mode=b.dataset.v; activePreset=null; syncUI(); schedule(); });
+$('a4').onchange = e => { S.a4 = e.target.checked; activePreset=null; schedule(); };
+document.querySelectorAll('#fmt button').forEach(b => b.onclick = () => { S.fmt=b.dataset.v; syncUI(); schedule(); });
+
+function syncUI(){
+  presetBox.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c.textContent===activePreset));
+  document.querySelectorAll('#mode button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v===S.mode));
+  SLIDERS.forEach(d => {
+    $('s-'+d.k).value = S[d.k];
+    $('o-'+d.k).textContent = (d.step<1 ? (+S[d.k]).toFixed(1) : S[d.k]) + (d.unit||'');
+    const row = $('s-'+d.k).parentElement;
+    const off = d.only && d.only!==S.mode;
+    row.classList.toggle('off', !!off); $('s-'+d.k).disabled = !!off;
+  });
+  $('a4').checked = S.a4;
+  document.querySelectorAll('#fmt button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v===S.fmt));
+  const qOff = S.fmt==='png'; $('s-quality').disabled=qOff; $('s-quality').parentElement.classList.toggle('off', qOff);
+}
+
+/* ---------- 이미지 처리 ---------- */
+function mk(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; return {c, ctx:c.getContext('2d', {willReadFrequently:true})}; }
+function rng(seed){ let s=(seed*2654435761)>>>0 || 1; return () => { s^=s<<13; s>>>=0; s^=s>>>17; s^=s<<5; s>>>=0; return s/4294967296; }; }
+
+// 원본 분석 결과는 메모리를 많이 쓰므로 최근 3장만 보관
+const cache=[];
+function ensure(item){
+  if(item.baseData) return;
+  prepare(item); cache.push(item);
+  while(cache.length>3){ const o=cache.shift(); if(o!==item){ o.baseData=null; o.bgData=null; } }
+}
+function prepare(item){
+  const iw=item.img.naturalWidth||1600, ih=item.img.naturalHeight||1600;
+  const k=Math.min(1, MAX/Math.max(iw,ih));
+  const w=Math.max(1,Math.round(iw*k)), h=Math.max(1,Math.round(ih*k));
+  const base=mk(w,h); base.ctx.fillStyle='#fff'; base.ctx.fillRect(0,0,w,h); base.ctx.drawImage(item.img,0,0,w,h);
+  item.w=w; item.h=h; item.baseData=base.ctx.getImageData(0,0,w,h);
+  // 종이 배경(조명) 추정: 축소 → 최댓값 필터로 글씨 제거 → 박스 블러 → 확대
+  const sw=Math.max(8,Math.round(w/12)), sh=Math.max(8,Math.round(h/12));
+  const sm=mk(sw,sh); sm.ctx.imageSmoothingQuality='high'; sm.ctx.drawImage(base.c,0,0,sw,sh);
+  const sd=sm.ctx.getImageData(0,0,sw,sh); const a=sd.data;
+  const mx=new Uint8ClampedArray(a.length); const R=2;
+  for(let y=0;y<sh;y++) for(let x=0;x<sw;x++){
+    let r=0,g=0,b=0;
+    for(let dy=-R;dy<=R;dy++){ const yy=Math.min(sh-1,Math.max(0,y+dy));
+      for(let dx=-R;dx<=R;dx++){ const xx=Math.min(sw-1,Math.max(0,x+dx)); const j=(yy*sw+xx)*4;
+        if(a[j]>r)r=a[j]; if(a[j+1]>g)g=a[j+1]; if(a[j+2]>b)b=a[j+2]; } }
+    const i=(y*sw+x)*4; mx[i]=r; mx[i+1]=g; mx[i+2]=b; mx[i+3]=255;
+  }
+  const rad=Math.max(2,Math.round(Math.min(sw,sh)/25));
+  let buf=mx; for(let p=0;p<2;p++){ buf=boxBlur(buf,sw,sh,rad,true); buf=boxBlur(buf,sw,sh,rad,false); }
+  sd.data.set(buf); sm.ctx.putImageData(sd,0,0);
+  const big=mk(w,h); big.ctx.imageSmoothingQuality='high'; big.ctx.drawImage(sm.c,0,0,w,h);
+  item.bgData=big.ctx.getImageData(0,0,w,h);
+}
+function boxBlur(src,w,h,r,horiz){
+  const out=new Uint8ClampedArray(src.length);
+  const n=horiz?w:h, m=horiz?h:w;
+  for(let line=0;line<m;line++){
+    for(let c=0;c<3;c++){
+      let sum=0;
+      const idx=t=>{ t=Math.min(n-1,Math.max(0,t)); return (horiz?(line*w+t):(t*w+line))*4+c; };
+      for(let t=-r;t<=r;t++) sum+=src[idx(t)];
+      for(let t=0;t<n;t++){
+        out[idx(t)]=sum/(2*r+1);
+        sum+=src[idx(t+r+1)]-src[idx(t-r)];
+      }
+    }
+    for(let t=0;t<n;t++) out[(horiz?(line*w+t):(t*w+line))*4+3]=255;
+  }
+  return out;
+}
+
+function paperColor(s){ const a=s.age/100; return [255-6*a, 255-15*a, 255-38*a]; }
+
+function render(item, s){
+  ensure(item);
+  const {w,h}=item; const src=item.baseData.data, bg=item.bgData.data;
+  const out=new ImageData(w,h); const o=out.data;
+  const f=s.flatten/100, gam=1+s.ink/40, knee=255-s.white*0.8;
+  // 톤 곡선: 글씨 진하게 = 중간톤만 어둡게(종이는 유지), 배경 하얗게 = knee보다 밝은 부분만 흰색으로
+  const LUT=new Float32Array(256);
+  for(let v=0;v<256;v++){ let x=255*Math.pow(v/255,gam); const t=Math.min(1,Math.max(0,(x-(knee-25))/30)); const sm=t*t*(3-2*t); LUT[v]=x*(1-sm)+255*sm; }
+  const T=v=>LUT[v<0?0:v>255?255:v|0];
+  const [tr,tg,tb]=paperColor(s); const nz=s.noise; const R=rng(item.seed); const thr=s.thr;
+  const mode=s.mode;
+  for(let i=0;i<o.length;i+=4){
+    let r=src[i], g=src[i+1], b=src[i+2];
+    if(f>0){
+      r=r*(1-f)+Math.min(255,r*255/Math.max(1,bg[i]))*f;
+      g=g*(1-f)+Math.min(255,g*255/Math.max(1,bg[i+1]))*f;
+      b=b*(1-f)+Math.min(255,b*255/Math.max(1,bg[i+2]))*f;
+    }
+    if(mode!=='color'){ const L=0.299*r+0.587*g+0.114*b; r=g=b=L; }
+    r=T(r); g=T(g); b=T(b);
+    if(mode==='bw'){ const v=255/(1+Math.exp(-(r-thr)/9)); r=g=b=v; }
+    if(nz){ const n=(R()-0.5)*nz; r+=n; g+=n; b+=n; }
+    o[i]=r*tr/255; o[i+1]=g*tg/255; o[i+2]=b*tb/255; o[i+3]=255;
+  }
+  const proc=mk(w,h); proc.ctx.putImageData(out,0,0);
+
+  let PW=w, PH=h, k=1;
+  if(s.a4){
+    const portrait=h>=w; PW=portrait?1654:2339; PH=portrait?2339:1654; // A4 @ 200dpi
+    const m=0.06; k=Math.min(PW*(1-2*m)/w, PH*(1-2*m)/h);
+  }
+  const fin=mk(PW,PH); const ctx=fin.ctx;
+  ctx.fillStyle=`rgb(${tr},${tg},${tb})`; ctx.fillRect(0,0,PW,PH);
+  ctx.save(); ctx.translate(PW/2,PH/2); ctx.rotate(s.tilt*Math.PI/180);
+  if(s.blur) ctx.filter=`blur(${(s.blur/10*Math.max(PW,PH)/1600).toFixed(2)}px)`;
+  ctx.imageSmoothingQuality='high';
+  ctx.drawImage(proc.c,-w*k/2,-h*k/2,w*k,h*k); ctx.restore(); ctx.filter='none';
+
+  if(s.shadow){
+    const a=s.shadow/100;
+    let gr=ctx.createLinearGradient(0,0,PW*0.035,0);
+    gr.addColorStop(0,`rgba(20,20,25,${0.55*a})`); gr.addColorStop(1,'rgba(20,20,25,0)');
+    ctx.fillStyle=gr; ctx.fillRect(0,0,PW*0.035,PH);
+    gr=ctx.createLinearGradient(0,0,0,PH*0.015);
+    gr.addColorStop(0,`rgba(20,20,25,${0.35*a})`); gr.addColorStop(1,'rgba(20,20,25,0)');
+    ctx.fillStyle=gr; ctx.fillRect(0,0,PW,PH*0.015);
+  }
+  if(s.dust){
+    const D=rng(item.seed+99); const sc=Math.max(PW,PH)/1600;
+    ctx.fillStyle='rgba(35,35,40,0.65)'; ctx.strokeStyle='rgba(35,35,40,0.45)';
+    for(let n=0;n<s.dust*6;n++){
+      const x=D()*PW, y=D()*PH;
+      if(D()<0.85){ ctx.beginPath(); ctx.arc(x,y,(0.4+D()*1.4)*sc,0,Math.PI*2); ctx.fill(); }
+      else { ctx.lineWidth=0.8*sc; ctx.beginPath(); ctx.moveTo(x,y);
+        ctx.quadraticCurveTo(x+(D()-.5)*30*sc,y+(D()-.5)*30*sc,x+(D()-.5)*40*sc,y+(D()-.5)*40*sc); ctx.stroke(); }
+    }
+  }
+  return fin.c;
+}
+
+function toBlob(c,s){ return new Promise(res => c.toBlob(res,FMT[s.fmt].mime,s.quality/100)); }
+
+let timer=null, lastBlob=null, lastUrl=null, token=0;
+function schedule(){ clearTimeout(timer); timer=setTimeout(draw,50); }
+async function draw(){
+  if(cur<0) return;
+  const my=++token; const item=items[cur];
+  const c=render(item,S); const blob=await toBlob(c,S);
+  if(my!==token) return;
+  lastBlob=blob; if(lastUrl) URL.revokeObjectURL(lastUrl);
+  lastUrl=URL.createObjectURL(blob); view.src=lastUrl;
+  $('meta').textContent=`${cur+1} / ${items.length} · ${item.name} · ${c.width}×${c.height}px · ${(blob.size/1024).toFixed(0)} KB`;
+  $('badge').hidden=!item.sample;
+}
+
+/* ---------- 사진 관리 ---------- */
+function addImage(src, name, sample, quiet){
+  return new Promise(res => {
+    const img=new Image();
+    img.onload=()=>{ const item={img,name,src,sample,seed:seedCounter++};
+      if(items.length && items[0].sample && !sample){ items.splice(0,1); }
+      items.push(item); if(!quiet){ cur=items.length-1; renderThumbs(); schedule(); } res(true); };
+    img.onerror=()=>{ res(false); };
+    img.src=src;
+  });
+}
+function renderThumbs(){
+  const box=$('thumbs'); box.innerHTML='';
+  items.forEach((it,i)=>{
+    const t=document.createElement('div'); t.className='thumb'; t.setAttribute('role','button'); t.tabIndex=0;
+    t.setAttribute('aria-current', i===cur); t.title=it.name;
+    t.innerHTML=`<img alt="">`; t.querySelector('img').src=it.src;
+    t.onclick=()=>{ cur=i; renderThumbs(); schedule(); };
+    t.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); t.click(); } };
+    const x=document.createElement('button'); x.className='x'; x.type='button'; x.textContent='✕'; x.setAttribute('aria-label',`${it.name} 빼기`);
+    x.onclick=e=>{ e.stopPropagation(); items.splice(i,1); cur=Math.min(cur,items.length-1);
+      renderThumbs(); if(cur<0){ view.removeAttribute('src'); $('meta').textContent='사진을 추가해 주세요.'; $('badge').hidden=true; } else schedule(); };
+    t.appendChild(x); box.appendChild(t);
+  });
+}
+const IMG_EXT=/\.(jpe?g|jfif|pjpeg|pjp|png|apng|webp|gif|bmp|dib|avif|svg|ico|heic|heif|tiff?)$/i;
+const loaded={};
+function loadScript(url){
+  if(!loaded[url]) loaded[url]=new Promise((ok,no)=>{ const sc=document.createElement('script'); sc.src=url; sc.onload=ok; sc.onerror=()=>{ delete loaded[url]; no(new Error('load')); }; document.head.appendChild(sc); });
+  return loaded[url];
+}
+async function heicToUrls(f){
+  await loadScript('https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js');
+  let out=await window.heic2any({blob:f, toType:'image/jpeg', quality:0.92});
+  if(!Array.isArray(out)) out=[out];
+  return out.map(b=>URL.createObjectURL(b));
+}
+async function tiffToUrls(f){
+  await loadScript('https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js');
+  const buf=await f.arrayBuffer(); const ifds=window.UTIF.decode(buf); const urls=[];
+  for(const ifd of ifds){
+    window.UTIF.decodeImage(buf, ifd);
+    if(!ifd.width||!ifd.height) continue;
+    const rgba=window.UTIF.toRGBA8(ifd); const {c,ctx}=mk(ifd.width, ifd.height);
+    ctx.putImageData(new ImageData(new Uint8ClampedArray(rgba.buffer, rgba.byteOffset, ifd.width*ifd.height*4), ifd.width, ifd.height),0,0);
+    const b=await new Promise(r=>c.toBlob(r,'image/png')); urls.push(URL.createObjectURL(b));
+  }
+  return urls;
+}
+let busy=false;
+async function addFiles(files){
+  files=files.filter(f=>f.type.startsWith('image/')||IMG_EXT.test(f.name));
+  if(!files.length){ toast('사진 파일이 없어요. 지원하는 형식인지 확인해 주세요.'); return; }
+  const prog=$('progress'); busy=true; let ok=0; const failed=[];
+  for(let n=0;n<files.length;n++){
+    const f=files[n]; prog.hidden=false; prog.textContent=`사진 불러오는 중 ${n+1} / ${files.length}`;
+    const isHeic=/\.(heic|heif)$/i.test(f.name)||/hei[cf]/i.test(f.type);
+    const isTiff=/\.tiff?$/i.test(f.name)||/tiff/i.test(f.type);
+    let added=false;
+    try{
+      if(isTiff){
+        const urls=await tiffToUrls(f);
+        for(let k=0;k<urls.length;k++){ const nm=urls.length>1?`${baseName(f.name)}_${k+1}쪽.tif`:f.name; if(await addImage(urls[k],nm,false,true)) added=true; }
+      } else {
+        const direct=URL.createObjectURL(f);
+        added=await addImage(direct,f.name,false,true);
+        if(!added && isHeic){ URL.revokeObjectURL(direct); for(const u of await heicToUrls(f)) if(await addImage(u,f.name,false,true)) added=true; }
+      }
+    }catch(e){ added=false; }
+    if(added) ok++; else failed.push(f.name);
+  }
+  busy=false; prog.hidden=true;
+  cur=items.length-1; renderThumbs(); schedule();
+  if(failed.length) toast(`${failed.length}개는 열지 못했어요: ${failed.slice(0,3).join(', ')}${failed.length>3?' 외':''}`);
+  else toast(`${ok}개 파일을 추가했어요.`);
+}
+$('file').onchange=e=>{ addFiles([...e.target.files]); e.target.value=''; };
+const stage=$('stage');
+['dragenter','dragover'].forEach(ev=>stage.addEventListener(ev,e=>{ e.preventDefault(); stage.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev=>stage.addEventListener(ev,e=>{ e.preventDefault(); stage.classList.remove('drag'); }));
+stage.addEventListener('drop',e=>addFiles([...e.dataTransfer.files]));
+window.addEventListener('paste',e=>{ const fs=[...(e.clipboardData?.files||[])]; if(fs.length) addFiles(fs); });
+
+const cmp=$('compare');
+const showOrig=()=>{ if(cur>=0) view.src=items[cur].src; };
+const showScan=()=>{ if(lastUrl) view.src=lastUrl; };
+cmp.addEventListener('pointerdown',showOrig); ['pointerup','pointerleave','pointercancel'].forEach(ev=>cmp.addEventListener(ev,showScan));
+cmp.addEventListener('keydown',e=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); showOrig(); } });
+cmp.addEventListener('keyup',showScan);
+
+/* ---------- 저장 ---------- */
+function baseName(n){ return n.replace(/\.[^.]+$/,''); }
+function toast(msg){ document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3000); }
+async function save(filename,data){
+  const url=URL.createObjectURL(data); const a=document.createElement('a');
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000); toast('저장했어요.');
+}
+function outName(it, used){
+  let n=`${baseName(it.name)}_스캔.${FMT[S.fmt].ext}`, k=2;
+  while(used.has(n)){ n=`${baseName(it.name)}_스캔(${k++}).${FMT[S.fmt].ext}`; }
+  used.add(n); return n;
+}
+const tick=()=>new Promise(r=>setTimeout(r,0));
+
+// 압축 없이 묶는 ZIP (사진은 이미 압축돼 있어 크기 차이가 거의 없음). 한글 파일명은 UTF-8로 기록
+const CRC_T=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+function crc32(u8){ let c=0xFFFFFFFF; for(let i=0;i<u8.length;i++) c=CRC_T[(c^u8[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function makeZip(files){
+  const enc=new TextEncoder(), parts=[], central=[]; let offset=0;
+  const d=new Date(), tm=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1), dt=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate();
+  for(const f of files){
+    const nm=enc.encode(f.name), crc=crc32(f.data), sz=f.data.length;
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0x0800,true); lh.setUint16(8,0,true);
+    lh.setUint16(10,tm,true); lh.setUint16(12,dt,true); lh.setUint32(14,crc,true); lh.setUint32(18,sz,true); lh.setUint32(22,sz,true);
+    lh.setUint16(26,nm.length,true); lh.setUint16(28,0,true);
+    parts.push(lh.buffer,nm,f.data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true); ch.setUint16(8,0x0800,true); ch.setUint16(10,0,true);
+    ch.setUint16(12,tm,true); ch.setUint16(14,dt,true); ch.setUint32(16,crc,true); ch.setUint32(20,sz,true); ch.setUint32(24,sz,true);
+    ch.setUint16(28,nm.length,true); ch.setUint32(42,offset,true);
+    central.push(ch.buffer,nm); offset+=30+nm.length+sz;
+  }
+  const csize=central.reduce((a,b)=>a+b.byteLength,0);
+  const end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true); end.setUint16(8,files.length,true); end.setUint16(10,files.length,true);
+  end.setUint32(12,csize,true); end.setUint32(16,offset,true);
+  return new Blob([...parts,...central,end.buffer],{type:'application/zip'});
+}
+function realItems(){ return items.filter(it=>!it.sample).length ? items.filter(it=>!it.sample) : items; }
+
+$('saveOne').onclick=async()=>{ if(cur<0||!lastBlob) return; await save(outName(items[cur],new Set()), lastBlob); };
+$('saveZip').onclick=async()=>{
+  const list=realItems(); if(!list.length||busy) return; busy=true;
+  const prog=$('progress'); const files=[]; const used=new Set();
+  try{
+    for(let n=0;n<list.length;n++){
+      prog.hidden=false; prog.textContent=`ZIP 만드는 중 ${n+1} / ${list.length}`; await tick();
+      const b=await toBlob(render(list[n],S),S);
+      files.push({name:outName(list[n],used), data:new Uint8Array(await b.arrayBuffer())});
+    }
+    prog.hidden=true; busy=false;
+    await save(`스캔본_${list.length}장.zip`, makeZip(files));
+  } finally { prog.hidden=true; busy=false; }
+};
+$('savePdf').onclick=async()=>{
+  const list=realItems(); if(!list.length||busy) return;
+  if(!window.jspdf){ toast('PDF 기능을 불러오지 못했어요. 인터넷 연결을 확인하거나 ZIP 저장을 이용해 주세요.'); return; }
+  busy=true; const prog=$('progress');
+  try{
+    const mm=px=>px/200*25.4; let doc=null;
+    for(let n=0;n<list.length;n++){
+      prog.hidden=false; prog.textContent=`PDF 만드는 중 ${n+1} / ${list.length}`; await tick();
+      const c=render(list[n],S); const url=c.toDataURL('image/jpeg',S.quality/100);
+      const W=mm(c.width), H=mm(c.height), o=W>H?'l':'p';
+      if(!doc) doc=new window.jspdf.jsPDF({orientation:o,unit:'mm',format:[W,H]}); else doc.addPage([W,H],o);
+      doc.addImage(url,'JPEG',0,0,W,H);
+    }
+    prog.hidden=true; busy=false;
+    await save(`스캔본_${list.length}장.pdf`, doc.output('blob'));
+  } finally { prog.hidden=true; busy=false; }
+};
+
+
+/* ---------- 예시 사진: 조명이 고르지 않은 학생 풀이 ---------- */
+async function makeSample(){
+  try{ await document.fonts.load('64px "Nanum Pen Script"'); }catch(e){}
+  const W=1200,H=1560; const {c,ctx}=mk(W,H);
+  ctx.fillStyle='#e8e2d4'; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(90,120,170,.25)'; ctx.lineWidth=2;
+  for(let y=200;y<H;y+=78){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y+6); ctx.stroke(); }
+  ctx.fillStyle='#262b40'; ctx.font='64px "Nanum Pen Script", cursive';
+  const lines=['3. x² − 5x + 6 = 0 의 해를 구하시오.','','(x − 2)(x − 3) = 0','','x − 2 = 0  또는  x − 3 = 0','','∴ x = 2 또는 x = 3','','검산: 2² − 5·2 + 6 = 0  ✓'];
+  lines.forEach((t,i)=>{ ctx.save(); ctx.translate(110+(i%3)*6,262+i*78-10); ctx.rotate((i%2?-1:1)*0.006); ctx.fillText(t,0,0); ctx.restore(); });
+  ctx.strokeStyle='#262b40'; ctx.lineWidth=4; ctx.strokeRect(94,664,620,82);
+  let g=ctx.createRadialGradient(W*0.25,H*0.15,50,W*0.4,H*0.4,W*1.1);
+  g.addColorStop(0,'rgba(255,250,235,.25)'); g.addColorStop(1,'rgba(60,50,40,.45)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  g=ctx.createRadialGradient(W*0.95,H*0.95,40,W*0.95,H*0.95,W*0.75);
+  g.addColorStop(0,'rgba(30,25,20,.55)'); g.addColorStop(1,'rgba(30,25,20,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  const d=ctx.getImageData(0,0,W,H), a=d.data, R=rng(7);
+  for(let i=0;i<a.length;i+=4){ const n=(R()-.5)*14; a[i]+=n; a[i+1]+=n; a[i+2]+=n+2; }
+  ctx.putImageData(d,0,0);
+  return c.toDataURL('image/jpeg',0.9);
+}
+syncUI();
+makeSample().then(u=>addImage(u,'예시_학생풀이.jpg',true));
+</script>
+
+</template>
+
 <script type="module">
   let isAdmin = false;
 
@@ -535,15 +1081,52 @@
   const lockSubmitBtn = document.getElementById('lockSubmitBtn');
   const lockError = document.getElementById('lockError');
 
+  /* 관리자가 켜고 끄는 잠금 설정은 Firestore의 settings/access 문서에 저장돼요.
+       locked      : true면 비밀번호 화면을 보여주고, false면 누구나 바로 입장
+       lockVersion : 잠금을 다시 켤 때마다 1씩 올라가서, 예전에 비밀번호를 입력해
+                     둔 브라우저도 모두 다시 입력하게 만듭니다.
+     서버 값을 받기 전에는 이 브라우저가 마지막으로 본 값으로 먼저 화면을 정해요. */
+  const ACCESS_CACHE_KEY = 'boardAccessCache_v1';
+  let accessLocked = true;
+  let lockVersion = 0;
+  try{
+    const cached = JSON.parse(localStorage.getItem(ACCESS_CACHE_KEY) || 'null');
+    if(cached){ accessLocked = cached.locked !== false; lockVersion = cached.lockVersion || 0; }
+  }catch(e){}
+
   function isUnlocked(){
-    try{ return localStorage.getItem(LOCK_STORAGE_KEY) === 'yes'; }catch(e){ return false; }
+    try{
+      const v = localStorage.getItem(LOCK_STORAGE_KEY);
+      return v === 'v' + lockVersion || (lockVersion === 0 && v === 'yes');
+    }catch(e){ return false; }
+  }
+  function applyLockState(){
+    const show = accessLocked && !isUnlocked() && !isAdmin;
+    const wasHidden = lockOverlay.classList.contains('hidden');
+    lockOverlay.classList.toggle('hidden', !show);
+    document.getElementById('relockBtn').classList.toggle('hidden', !accessLocked);
+    if(show && wasHidden){
+      lockPasswordInput.value = '';
+      lockError.classList.add('hidden');
+      setTimeout(()=>lockPasswordInput.focus(), 50);
+    }
+    updateLockToggleUI();
+  }
+  function updateLockToggleUI(){
+    const btn = document.getElementById('lockToggleBtn');
+    if(!btn) return;
+    btn.classList.toggle('on', accessLocked);
+    btn.classList.toggle('off', !accessLocked);
+    btn.textContent = accessLocked ? '🔒 입장 비밀번호: 켜짐' : '🔓 입장 비밀번호: 꺼짐';
+    btn.title = accessLocked ? '누르면 비밀번호 없이 누구나 들어올 수 있게 됩니다' : '누르면 다시 비밀번호를 입력해야 들어올 수 있게 됩니다';
   }
   function unlock(){
-    try{ localStorage.setItem(LOCK_STORAGE_KEY, 'yes'); }catch(e){}
-    lockOverlay.classList.add('hidden');
+    try{ localStorage.setItem(LOCK_STORAGE_KEY, 'v' + lockVersion); }catch(e){}
+    applyLockState();
   }
   function relock(){
     try{ localStorage.removeItem(LOCK_STORAGE_KEY); }catch(e){}
+    if(!accessLocked) return;
     lockOverlay.classList.remove('hidden');
     lockPasswordInput.value = '';
     lockError.classList.add('hidden');
@@ -563,14 +1146,31 @@
       lockPasswordInput.focus();
     }
   }
-  if(isUnlocked()){
-    lockOverlay.classList.add('hidden');
-  } else {
-    setTimeout(()=>lockPasswordInput.focus(), 100);
-  }
+  lockOverlay.classList.add('hidden');
+  applyLockState();
   lockSubmitBtn.addEventListener('click', attemptUnlock);
   lockPasswordInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') attemptUnlock(); });
   document.getElementById('relockBtn').addEventListener('click', relock);
+
+  /* ---------------- 스캔 효과 변환기 (상단 탭 → 새 창) ----------------
+     변환기 전체가 이 파일 안의 <template id="scanToolHead/scanToolBody">에
+     들어 있어서, 파일을 따로 올리지 않아도 됩니다. 버튼을 누르면 그 내용으로
+     새 창을 만들어 엽니다. 사진은 그 창 안(브라우저)에서만 처리되고
+     Firebase에는 올라가지 않아요.
+  ======================================================================== */
+  let scanToolURL = null;
+  document.getElementById('openScanToolBtn').addEventListener('click', ()=>{
+    if(!scanToolURL){
+      const head = document.getElementById('scanToolHead').innerHTML;
+      const body = document.getElementById('scanToolBody').innerHTML;
+      const html = '<!doctype html><html lang="ko"><head><meta charset="utf-8">'
+        + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        + head + '</head><body>' + body + '</body></html>';
+      scanToolURL = URL.createObjectURL(new Blob([html], {type:'text/html;charset=utf-8'}));
+    }
+    const w = window.open(scanToolURL, '_blank');
+    if(!w) alert('새 창이 차단됐어요. 주소창 오른쪽의 팝업 차단 아이콘을 눌러 이 사이트의 팝업을 허용해 주세요.');
+  });
 
   document.getElementById('adminLoginBtn').addEventListener('click', async ()=>{
     if(!auth){ alert('Firebase 설정이 완료되지 않았습니다.'); return; }
@@ -604,7 +1204,7 @@
 
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
   import {
-    getFirestore, collection, doc, addDoc, updateDoc, deleteDoc,
+    getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, setDoc,
     onSnapshot, query, where, getDocs
   } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
   import {
@@ -639,17 +1239,20 @@
       storage = getStorage(app);
       auth = getAuth(app);
       firebaseReady = true;
+      subscribeAccessSetting();
       subscribeYearsAndLectures();
       onAuthStateChanged(auth, async (user)=>{
         if(user && user.email !== ADMIN_EMAIL){
           isAdmin = false;
           try{ await signOut(auth); }catch(e){}
           updateAdminUI();
+          applyLockState();
           alert('관리자 계정(' + ADMIN_EMAIL + ')으로만 로그인할 수 있어요.');
           return;
         }
         isAdmin = !!user;
         updateAdminUI();
+        applyLockState();
         render();
         renderSidebar();
       });
@@ -657,6 +1260,41 @@
       showSetupBanner('⚠️ Firebase 초기화에 실패했습니다: ' + err.message);
     }
   }
+
+  /* ---------------- 입장 비밀번호 켜기/끄기 (settings/access) ---------------- */
+  function subscribeAccessSetting(){
+    onSnapshot(doc(db,'settings','access'), snap=>{
+      const d = snap.exists() ? snap.data() : {};
+      accessLocked = d.locked !== false;
+      lockVersion = d.lockVersion || 0;
+      try{ localStorage.setItem(ACCESS_CACHE_KEY, JSON.stringify({locked:accessLocked, lockVersion})); }catch(e){}
+      applyLockState();
+    }, err=>{
+      // 읽기 권한이 없으면 안전하게 잠금 상태를 유지해요.
+      console.error('잠금 설정을 불러오지 못했습니다:', err);
+    });
+  }
+  document.getElementById('lockToggleBtn').addEventListener('click', async ()=>{
+    const btn = document.getElementById('lockToggleBtn');
+    const next = !accessLocked;
+    const msg = next
+      ? '입장 비밀번호를 켤까요?\n이미 들어와 있던 사람들도 모두 비밀번호를 다시 입력해야 들어올 수 있어요.'
+      : '입장 비밀번호를 끌까요?\n링크만 있으면 누구나 비밀번호 없이 보드를 볼 수 있어요. (사진 추가·수정·삭제는 계속 관리자만 할 수 있어요)';
+    if(!confirm(msg)) return;
+    btn.disabled = true;
+    try{
+      ensureReady();
+      await setDoc(doc(db,'settings','access'), {
+        locked: next,
+        lockVersion: next ? lockVersion + 1 : lockVersion,
+        updatedAt: Date.now()
+      }, { merge:true });
+    }catch(err){
+      alert('잠금 설정을 바꾸지 못했습니다.\n' + err.message + '\n\nFirestore 보안 규칙에 settings 컬렉션 쓰기 권한이 있는지 확인해 주세요.');
+    }finally{
+      btn.disabled = false;
+    }
+  });
 
   function ensureReady(){
     if(!firebaseReady) throw new Error('Firebase 설정이 완료되지 않았습니다. 안내를 참고해 설정을 마쳐주세요.');
